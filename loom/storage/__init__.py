@@ -25,9 +25,11 @@ from loom.storage.project import Project
 from loom.storage.repository import (
     BulletRepository,
     DataStorage,
+    ExperienceRepository,
     InMemoryDataStorage,
     JDRepository,
     ProfileRepository,
+    ResumeRepository,
 )
 from loom.storage.resume import JDRecord, ResumeArtifact
 
@@ -62,6 +64,8 @@ __all__ = [
     "ProfileRepository",
     "JDRepository",
     "BulletRepository",
+    "ExperienceRepository",
+    "ResumeRepository",
     "DataStorage",
     "InMemoryDataStorage",
 ]

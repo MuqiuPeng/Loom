@@ -7,7 +7,7 @@ from loom.storage.base import BaseEntity
 from loom.storage.bullet import Bullet
 from loom.storage.profile import Education, Experience, Profile, Skill
 from loom.storage.project import Project
-from loom.storage.resume import JDRecord
+from loom.storage.resume import JDRecord, ResumeArtifact
 
 
 class ProfileRepository:
@@ -155,6 +155,38 @@ class BulletRepository:
         return result
 
 
+class ResumeRepository:
+    """Repository for resume artifacts."""
+
+    def __init__(self, storage: "DataStorage | None" = None):
+        self.storage = storage or InMemoryDataStorage()
+
+    async def save_artifact(self, artifact: ResumeArtifact) -> None:
+        await self.storage.save_resume_artifact(artifact)
+
+    async def get_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
+        return await self.storage.get_resume_artifact(artifact_id)
+
+
+class ExperienceRepository:
+    """Repository for experience data."""
+
+    def __init__(self, storage: "DataStorage | None" = None):
+        self.storage = storage or InMemoryDataStorage()
+
+    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
+        return await self.storage.get_experience_by_id(exp_id)
+
+    async def get_experiences_by_ids(self, exp_ids: list[UUID]) -> dict[UUID, Experience]:
+        """Get multiple experiences by their IDs."""
+        result = {}
+        for exp_id in exp_ids:
+            exp = await self.storage.get_experience_by_id(exp_id)
+            if exp:
+                result[exp_id] = exp
+        return result
+
+
 class DataStorage:
     """Abstract interface for data persistence."""
 
@@ -165,6 +197,9 @@ class DataStorage:
         raise NotImplementedError
 
     async def get_experiences(self, profile_id: UUID) -> list[Experience]:
+        raise NotImplementedError
+
+    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
         raise NotImplementedError
 
     async def get_bullets(self, experience_id: UUID) -> list[Bullet]:
@@ -182,6 +217,12 @@ class DataStorage:
     async def update_jd_match_score(self, jd_id: UUID, score: float) -> None:
         raise NotImplementedError
 
+    async def save_resume_artifact(self, artifact: ResumeArtifact) -> None:
+        raise NotImplementedError
+
+    async def get_resume_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
+        raise NotImplementedError
+
 
 class InMemoryDataStorage(DataStorage):
     """In-memory storage for testing and development."""
@@ -190,10 +231,12 @@ class InMemoryDataStorage(DataStorage):
         self._profiles: dict[str, Profile] = {}
         self._skills: dict[UUID, list[Skill]] = {}
         self._experiences: dict[UUID, list[Experience]] = {}
+        self._experiences_by_id: dict[UUID, Experience] = {}
         self._bullets: dict[UUID, list[Bullet]] = {}
         self._projects: dict[UUID, list[Project]] = {}
         self._education: dict[UUID, list[Education]] = {}
         self._jd_records: dict[UUID, JDRecord] = {}
+        self._resume_artifacts: dict[UUID, ResumeArtifact] = {}
 
     # Profile operations
     async def save_profile(self, profile: Profile) -> None:
@@ -216,9 +259,13 @@ class InMemoryDataStorage(DataStorage):
         if exp.profile_id not in self._experiences:
             self._experiences[exp.profile_id] = []
         self._experiences[exp.profile_id].append(exp)
+        self._experiences_by_id[exp.id] = exp
 
     async def get_experiences(self, profile_id: UUID) -> list[Experience]:
         return self._experiences.get(profile_id, [])
+
+    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
+        return self._experiences_by_id.get(exp_id)
 
     # Bullets
     async def save_bullet(self, bullet: Bullet) -> None:
@@ -257,3 +304,10 @@ class InMemoryDataStorage(DataStorage):
     async def update_jd_match_score(self, jd_id: UUID, score: float) -> None:
         if jd_id in self._jd_records:
             self._jd_records[jd_id].match_score = score
+
+    # Resume Artifacts
+    async def save_resume_artifact(self, artifact: ResumeArtifact) -> None:
+        self._resume_artifacts[artifact.id] = artifact
+
+    async def get_resume_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
+        return self._resume_artifacts.get(artifact_id)
