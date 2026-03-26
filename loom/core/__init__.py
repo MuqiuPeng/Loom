@@ -6,6 +6,7 @@ from loom.core.pipeline import InMemoryStorage, StepError, WorkflowRunner, Workf
 from loom.core.registry import StepRegistry, step_registry
 from loom.core.step import Step
 from loom.core.trigger import Trigger
+from loom.core.trigger_registry import TriggerRegistry, trigger_registry
 
 __all__ = [
     # Interfaces
@@ -21,4 +22,6 @@ __all__ = [
     # Registry
     "StepRegistry",
     "step_registry",
+    "TriggerRegistry",
+    "trigger_registry",
 ]

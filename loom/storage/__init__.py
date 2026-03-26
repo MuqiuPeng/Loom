@@ -8,6 +8,7 @@ Organized into:
 - project: Project
 - resume: JDRecord, ResumeArtifact
 - repository: ProfileRepository, JDRepository, DataStorage
+- init_db: Database initialization utilities
 """
 
 from loom.storage.base import BaseEntity
