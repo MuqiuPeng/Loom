@@ -7,6 +7,7 @@ Organized into:
 - bullet: Bullet, BulletType, STARData
 - project: Project
 - resume: JDRecord, ResumeArtifact
+- repository: ProfileRepository, JDRepository, DataStorage
 """
 
 from loom.storage.base import BaseEntity
@@ -21,6 +22,12 @@ from loom.storage.execution import (
 )
 from loom.storage.profile import Education, Experience, Profile, Skill, SkillLevel
 from loom.storage.project import Project
+from loom.storage.repository import (
+    DataStorage,
+    InMemoryDataStorage,
+    JDRepository,
+    ProfileRepository,
+)
 from loom.storage.resume import JDRecord, ResumeArtifact
 
 __all__ = [
@@ -50,4 +57,9 @@ __all__ = [
     # Resume
     "JDRecord",
     "ResumeArtifact",
+    # Repository
+    "ProfileRepository",
+    "JDRepository",
+    "DataStorage",
+    "InMemoryDataStorage",
 ]
