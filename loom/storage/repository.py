@@ -118,6 +118,43 @@ class JDRepository:
         await self.storage.update_jd_match_score(jd_id, score)
 
 
+class BulletRepository:
+    """Repository for bullet operations."""
+
+    def __init__(self, storage: "DataStorage | None" = None):
+        self.storage = storage or InMemoryDataStorage()
+
+    async def get_all_bullets_for_user(
+        self, user_id: str = "local"
+    ) -> list[tuple[Experience, list[Bullet]]]:
+        """Get all bullets grouped by experience for a user.
+
+        Returns list of (Experience, [Bullet]) tuples,
+        sorted by Experience.start_date descending (most recent first).
+        """
+        profile = await self.storage.get_profile(user_id)
+        if not profile:
+            return []
+
+        experiences = await self.storage.get_experiences(profile.id)
+
+        # Sort by start_date descending (most recent first)
+        experiences = sorted(
+            experiences,
+            key=lambda e: e.start_date or "0000-00-00",
+            reverse=True,
+        )
+
+        result = []
+        for exp in experiences:
+            if not exp.is_visible:
+                continue
+            bullets = await self.storage.get_bullets(exp.id)
+            result.append((exp, bullets))
+
+        return result
+
+
 class DataStorage:
     """Abstract interface for data persistence."""
 

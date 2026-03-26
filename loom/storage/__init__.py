@@ -23,6 +23,7 @@ from loom.storage.execution import (
 from loom.storage.profile import Education, Experience, Profile, Skill, SkillLevel
 from loom.storage.project import Project
 from loom.storage.repository import (
+    BulletRepository,
     DataStorage,
     InMemoryDataStorage,
     JDRepository,
@@ -60,6 +61,7 @@ __all__ = [
     # Repository
     "ProfileRepository",
     "JDRepository",
+    "BulletRepository",
     "DataStorage",
     "InMemoryDataStorage",
 ]
