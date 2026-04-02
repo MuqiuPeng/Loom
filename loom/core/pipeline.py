@@ -8,6 +8,20 @@ from loom.core.context import PipelineContext
 from loom.core.registry import step_registry
 from loom.storage import RunStatus, StepRun, WorkflowDefinition, WorkflowRun
 
+_logger = None
+
+
+async def _log(level: str, action: str, message: str, **kw: Any) -> None:
+    global _logger
+    try:
+        if _logger is None:
+            from loom.services.logger import logger
+            _logger = logger
+        method = getattr(_logger, level)
+        await method("workflow", action, message, **kw)
+    except Exception:
+        pass
+
 
 class StepError(Exception):
     """Exception raised when a step fails."""
@@ -57,25 +71,26 @@ class WorkflowRunner:
 
     async def _start_new(self, initial_data: dict[str, Any]) -> WorkflowRun:
         """Start a new workflow run."""
-        # Create workflow run record
         workflow_run = WorkflowRun(
             workflow_definition_id=self.workflow_def.id,
             status=RunStatus.RUNNING,
             trigger_data=initial_data,
         )
         await self.storage.save_workflow_run(workflow_run)
+        await _log("info", "workflow.start",
+            f"Starting workflow {self.workflow_def.name}",
+            workflow_run_id=str(workflow_run.id))
 
-        # Create initial context
         context = PipelineContext(
             workflow_id=str(self.workflow_def.id),
             data=initial_data,
         )
-
-        # Execute steps
         return await self._execute_steps(workflow_run, context, start_order=0)
 
     async def _resume(self, run_id: UUID) -> WorkflowRun:
         """Resume a failed workflow run from checkpoint."""
+        await _log("info", "workflow.resume", f"Resuming workflow {run_id}",
+            workflow_run_id=str(run_id))
         workflow_run = await self.storage.get_workflow_run(run_id)
         if not workflow_run:
             raise ValueError(f"WorkflowRun {run_id} not found")
@@ -139,33 +154,47 @@ class WorkflowRunner:
             )
             await self.storage.save_step_run(step_run)
 
+            await _log("info", "step.start", f"Running step: {step_name}",
+                workflow_run_id=str(workflow_run.id), step_name=step_name)
+
             try:
-                # Get step instance and execute
                 step = step_registry.get(step_name)
+                step_start = datetime.utcnow()
                 context = await step.run(context)
 
-                # Update step run as completed
                 step_run.status = RunStatus.COMPLETED
                 step_run.output_snapshot = context.data.copy()
                 step_run.completed_at = datetime.utcnow()
                 await self.storage.save_step_run(step_run)
 
+                duration = (step_run.completed_at - step_start).total_seconds()
+                await _log("info", "step.complete",
+                    f"Step {step_name} completed in {duration:.1f}s",
+                    workflow_run_id=str(workflow_run.id),
+                    step_name=step_name, duration_seconds=duration)
+
             except Exception as e:
-                # Update step run as failed
                 step_run.status = RunStatus.FAILED
                 step_run.error = str(e)
                 step_run.completed_at = datetime.utcnow()
                 await self.storage.save_step_run(step_run)
 
-                # Update workflow run as failed
                 workflow_run.status = RunStatus.FAILED
                 await self.storage.save_workflow_run(workflow_run)
 
+                await _log("error", "step.failed",
+                    f"Step {step_name} failed: {str(e)[:200]}",
+                    error=e, workflow_run_id=str(workflow_run.id),
+                    step_name=step_name)
+
                 raise StepError(step_name, str(e)) from e
 
-        # All steps completed
         workflow_run.status = RunStatus.COMPLETED
         await self.storage.save_workflow_run(workflow_run)
+        total = (datetime.utcnow() - workflow_run.created_at).total_seconds()
+        await _log("info", "workflow.complete",
+            f"Workflow completed in {total:.1f}s",
+            workflow_run_id=str(workflow_run.id))
         return workflow_run
 
 

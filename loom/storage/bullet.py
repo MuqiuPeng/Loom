@@ -1,4 +1,8 @@
-"""Bullet schema - STAR-structured experience highlights."""
+"""Bullet schema - STAR-structured experience highlights.
+
+Bilingual support: content_en / content_zh for display text.
+raw_text is the original user input, kept permanently and language-agnostic.
+"""
 
 from enum import Enum
 from typing import Any
@@ -75,7 +79,17 @@ class Bullet(BaseEntity):
         description="1=highest, 5=lowest"
     )
 
-    # Content
+    # Bilingual display text
+    content_en: str | None = Field(
+        default=None,
+        description="English display text for the bullet"
+    )
+    content_zh: str | None = Field(
+        default=None,
+        description="Chinese display text for the bullet"
+    )
+
+    # Original input - permanently preserved, language-agnostic
     raw_text: str = Field(
         ...,
         description="User's original description, always preserved"
@@ -85,7 +99,7 @@ class Bullet(BaseEntity):
         description="JSONB: {situation, task, action, result_quantified, result_qualitative}"
     )
 
-    # Matching metadata
+    # Matching metadata - language-agnostic
     tech_stack: list[dict[str, Any]] = Field(
         default_factory=list,
         description="JSONB: [{name, role, ecosystem_group}]"

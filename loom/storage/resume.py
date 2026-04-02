@@ -1,4 +1,4 @@
-"""Resume-related schemas - JD records and generated artifacts."""
+"""Resume-related schemas - JD records, generated artifacts, and async tasks."""
 
 from typing import Any
 from uuid import UUID
@@ -6,6 +6,16 @@ from uuid import UUID
 from pydantic import Field
 
 from loom.storage.base import BaseEntity
+
+
+class Task(BaseEntity):
+    """Async task for tracking background operations."""
+
+    type: str = Field(..., description="Task type: analyze_jd / generate_resume")
+    status: str = Field(default="pending", description="pending / running / completed / failed")
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    output_data: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = Field(default=None)
 
 
 class JDRecord(BaseEntity):
@@ -33,7 +43,7 @@ class JDRecord(BaseEntity):
 class ResumeArtifact(BaseEntity):
     """Generated resume artifact."""
 
-    jd_record_id: UUID = Field(..., description="FK to JDRecord")
+    jd_record_id: UUID | None = Field(default=None, description="FK to JDRecord")
     workflow_run_id: UUID | None = Field(
         default=None,
         description="FK to WorkflowRun that generated this"
@@ -48,3 +58,10 @@ class ResumeArtifact(BaseEntity):
         default=None,
         description="Generated LaTeX content"
     )
+    pdf_path: str | None = Field(
+        default=None,
+        description="Path to compiled PDF file"
+    )
+    starred: bool = Field(default=False)
+    status: str = Field(default="completed")  # generating / completed / failed
+    generation_progress: str | None = Field(default=None)

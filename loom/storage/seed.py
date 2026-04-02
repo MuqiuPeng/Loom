@@ -24,13 +24,16 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
     """
     # Create profile
     profile = Profile(
-        name="Alex Chen",
+        name_en="Alex Chen",
+        name_zh="陈亚历",
         email="alex.chen@example.com",
         phone="+1-555-0123",
-        location="San Francisco, CA",
-        summary="Senior backend engineer with 6+ years of experience building "
-                "scalable distributed systems. Passionate about clean architecture "
-                "and developer experience.",
+        location_en="San Francisco, CA",
+        location_zh="旧金山, 加州",
+        summary_en="Senior backend engineer with 6+ years of experience building "
+                   "scalable distributed systems. Passionate about clean architecture "
+                   "and developer experience.",
+        summary_zh=None,
     )
     await storage.save_profile(profile)
 
@@ -45,20 +48,20 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
         ("AWS", SkillLevel.PROFICIENT, "EC2, S3, Lambda, RDS"),
         ("Kafka", SkillLevel.FAMILIAR, "Event streaming"),
     ]
-    for name, level, context in skills_data:
+    for name, level, context_en in skills_data:
         await storage.save_skill(Skill(
             profile_id=profile.id,
             name=name,
             level=level,
-            context=context,
+            context_en=context_en,
         ))
 
     # Add experience 1 (current)
     exp1 = Experience(
         profile_id=profile.id,
-        company="TechScale Inc.",
-        title="Senior Software Engineer",
-        location="San Francisco, CA",
+        company_en="TechScale Inc.",
+        title_en="Senior Software Engineer",
+        location_en="San Francisco, CA",
         start_date=date(2021, 3, 1),
         end_date=None,
     )
@@ -106,6 +109,7 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
             experience_id=exp1.id,
             type=btype,
             priority=priority,
+            content_en=raw,
             raw_text=raw,
             star_data=star,
             tech_stack=tech,
@@ -116,9 +120,9 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
     # Add experience 2 (previous)
     exp2 = Experience(
         profile_id=profile.id,
-        company="DataFlow Systems",
-        title="Software Engineer",
-        location="Seattle, WA",
+        company_en="DataFlow Systems",
+        title_en="Software Engineer",
+        location_en="Seattle, WA",
         start_date=date(2018, 6, 1),
         end_date=date(2021, 2, 28),
     )
@@ -158,6 +162,7 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
             experience_id=exp2.id,
             type=btype,
             priority=priority,
+            content_en=raw,
             raw_text=raw,
             star_data=star,
             tech_stack=tech,
@@ -168,9 +173,9 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
     # Add education
     await storage.save_education(Education(
         profile_id=profile.id,
-        institution="University of California, Berkeley",
-        degree="B.S.",
-        field="Computer Science",
+        institution_en="University of California, Berkeley",
+        degree_en="B.S.",
+        field_en="Computer Science",
         start_date=date(2014, 8, 1),
         end_date=date(2018, 5, 15),
     ))
@@ -178,9 +183,9 @@ async def seed_sample_profile(storage: InMemoryDataStorage) -> Profile:
     # Add project
     await storage.save_project(Project(
         profile_id=profile.id,
-        name="Open Source CLI Tool",
-        description="Command-line tool for API testing with 500+ GitHub stars",
-        role="Creator & Maintainer",
+        name_en="Open Source CLI Tool",
+        description_en="Command-line tool for API testing with 500+ GitHub stars",
+        role_en="Creator & Maintainer",
         tech_stack=[{"name": "Go"}, {"name": "Docker"}],
         bullets=[
             {"text": "Built CLI tool for API testing used by 1000+ developers"},

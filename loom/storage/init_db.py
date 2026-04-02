@@ -1,17 +1,39 @@
-"""Database initialization utilities."""
+"""Database initialization utilities.
+
+Supports both InMemory (default) and PostgreSQL storage backends.
+
+Set LOOM_DB_BACKEND=postgres to use PostgreSQL.
+Set DATABASE_URL to configure the PostgreSQL connection.
+"""
+
+import os
 
 from loom.storage.repository import DataStorage, InMemoryDataStorage
 from loom.workflows.resume_tailor import RESUME_TAILOR_WORKFLOW
 
-# Global storage instance (will be replaced with PostgreSQL later)
+# Storage backend configuration
+DB_BACKEND = os.getenv("LOOM_DB_BACKEND", "memory")  # "memory" or "postgres"
+
+# Global storage instance
 _storage: DataStorage | None = None
 
 
 def get_storage() -> DataStorage:
-    """Get the global storage instance."""
+    """Get the global storage instance.
+
+    Returns InMemoryDataStorage by default.
+    Set LOOM_DB_BACKEND=postgres to use PostgreSQL.
+    """
     global _storage
     if _storage is None:
-        _storage = InMemoryDataStorage()
+        if DB_BACKEND == "postgres":
+            # Import here to avoid requiring asyncpg when not using postgres
+            from loom.storage.postgres import PostgresDataStorage
+            # Note: PostgresDataStorage needs a session, so we can't use it directly
+            # For now, return InMemoryDataStorage; CLI uses PostgresDataStorageContext
+            _storage = InMemoryDataStorage()
+        else:
+            _storage = InMemoryDataStorage()
     return _storage
 
 
@@ -19,6 +41,11 @@ def set_storage(storage: DataStorage) -> None:
     """Set the global storage instance (for testing)."""
     global _storage
     _storage = storage
+
+
+def is_postgres_enabled() -> bool:
+    """Check if PostgreSQL backend is enabled."""
+    return DB_BACKEND == "postgres"
 
 
 async def init_db(storage: DataStorage | None = None) -> DataStorage:
@@ -40,6 +67,19 @@ async def init_db(storage: DataStorage | None = None) -> DataStorage:
     await _register_workflows(storage)
 
     return storage
+
+
+async def init_postgres_db() -> None:
+    """Initialize PostgreSQL database tables.
+
+    Creates all tables using SQLAlchemy ORM models.
+    """
+    from loom.storage.database import get_engine
+    from loom.storage.models import Base
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def _register_workflows(storage: DataStorage) -> None:

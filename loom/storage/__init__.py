@@ -7,7 +7,11 @@ Organized into:
 - bullet: Bullet, BulletType, STARData
 - project: Project
 - resume: JDRecord, ResumeArtifact
-- repository: ProfileRepository, JDRepository, DataStorage
+- usage: TokenUsage, UsageSummary (LLM usage tracking)
+- repository: ProfileRepository, JDRepository, UsageRepository, DataStorage
+- postgres: PostgresDataStorage (PostgreSQL implementation)
+- database: Async engine and session management
+- models: SQLAlchemy ORM models
 - init_db: Database initialization utilities
 """
 
@@ -31,8 +35,10 @@ from loom.storage.repository import (
     JDRepository,
     ProfileRepository,
     ResumeRepository,
+    UsageRepository,
 )
 from loom.storage.resume import JDRecord, ResumeArtifact
+from loom.storage.usage import TokenUsage, UsageSummary
 
 __all__ = [
     # Base
@@ -61,12 +67,27 @@ __all__ = [
     # Resume
     "JDRecord",
     "ResumeArtifact",
+    # Usage
+    "TokenUsage",
+    "UsageSummary",
     # Repository
     "ProfileRepository",
     "JDRepository",
     "BulletRepository",
     "ExperienceRepository",
     "ResumeRepository",
+    "UsageRepository",
     "DataStorage",
     "InMemoryDataStorage",
 ]
+
+
+# Lazy imports for PostgreSQL support (requires asyncpg)
+def __getattr__(name: str):
+    if name == "PostgresDataStorage":
+        from loom.storage.postgres import PostgresDataStorage
+        return PostgresDataStorage
+    if name == "PostgresDataStorageContext":
+        from loom.storage.postgres import PostgresDataStorageContext
+        return PostgresDataStorageContext
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

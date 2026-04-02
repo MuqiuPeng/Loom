@@ -1,10 +1,15 @@
 """ParseJDStep - extracts structured data from job description text."""
 
+from typing import TYPE_CHECKING
+
 from loom.core.context import PipelineContext
 from loom.core.pipeline import StepError
 from loom.core.registry import step_registry
 from loom.core.step import Step
 from loom.llm import Claude, Model
+
+if TYPE_CHECKING:
+    from loom.storage.repository import DataStorage
 
 PARSE_JD_PROMPT = """Analyze the following job description and extract structured information.
 
@@ -44,16 +49,36 @@ class ParseJDStep(Step):
     def name(self) -> str:
         return "parse-jd"
 
-    def __init__(self, claude: Claude | None = None):
+    def __init__(
+        self,
+        claude: Claude | None = None,
+        storage: "DataStorage | None" = None,
+    ):
         self.claude = claude or Claude()
+        self.storage = storage
+        # Configure Claude with storage for usage tracking
+        if storage:
+            self.claude.set_storage(storage)
 
     async def run(self, context: PipelineContext) -> PipelineContext:
-        # Get raw JD text
         jd_text = context.data.get("jd_raw_text")
         if not jd_text:
             raise StepError(self.name, "context.data['jd_raw_text'] is required")
 
-        # Build prompt and call Claude
+        self.claude.set_context(
+            workflow_run_id=context.workflow_id,
+            step_name=self.name,
+            user_id=context.user_id,
+        )
+
+        try:
+            from loom.services.logger import logger
+            await logger.info("workflow", "step.parse_jd.input",
+                f"Parsing JD ({len(jd_text)} chars)",
+                step_name=self.name, jd_preview=jd_text[:150])
+        except Exception:
+            pass
+
         prompt = PARSE_JD_PROMPT.format(jd_text=jd_text)
 
         try:
@@ -64,11 +89,18 @@ class ParseJDStep(Step):
         except ValueError as e:
             raise StepError(self.name, f"Failed to parse JD: {e}")
 
-        # Validate required fields
         if not parsed.get("title"):
             raise StepError(self.name, "Could not extract job title from JD")
 
-        # Write result to context
+        try:
+            from loom.services.logger import logger
+            await logger.info("workflow", "step.parse_jd.output",
+                f"Parsed: {parsed.get('title')} at {parsed.get('company')}, "
+                f"{len(parsed.get('required_skills', []))} required skills",
+                step_name=self.name)
+        except Exception:
+            pass
+
         new_data = {**context.data, "jd_parsed": parsed}
         return context.model_copy(update={"data": new_data})
 

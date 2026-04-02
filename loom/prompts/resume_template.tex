@@ -1,0 +1,100 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[a4paper, left=0.1in, right=0.1in, top=0.1in, bottom=0.1in]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fontenc}
+\usepackage{inputenc}
+
+% Formatting
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\renewcommand{\baselinestretch}{1.2}
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{0em}{0em}
+\setlist{itemsep=0em}
+\setlength{\itemsep}{0pt}
+\setlength{\topsep}{0pt}
+\setlength{\partopsep}{0pt}
+\setlength{\parsep}{0pt}
+\setlength{\parskip}{5pt}
+
+\begin{document}
+
+%% ── HEADER ──────────────────────────────────────────────────────────
+\begin{center}
+    {\LARGE \textbf{ {{- candidate.name | latex -}} }} \\
+    \vspace{2pt}
+    \href{mailto:{{ candidate.email }}}{ {{- candidate.email | latex -}} }
+    {%- if candidate.phone %} | {{ candidate.phone | latex }}{% endif %}
+    {%- if candidate.linkedin %} |
+        \href{ {{- candidate.linkedin -}} }{linkedin.com/in/{{ candidate.linkedin_handle | latex }}}
+    {%- endif %}
+    {%- if candidate.github %} |
+        \href{ {{- candidate.github -}} }{github.com/{{ candidate.github_handle | latex }}}
+    {%- endif %}
+    {%- if candidate.location %} | {{ candidate.location | latex }}{% endif %}
+\end{center}
+
+%% ── TECHNICAL SKILLS ────────────────────────────────────────────────
+\section*{Technical Skills}
+\begin{itemize}[leftmargin=0.15in]
+{%- for skill_group in skills %}
+    \item \textbf{ {{- skill_group.category | latex -}} :}
+          {{ skill_group.content | latex }}
+{%- endfor %}
+\end{itemize}
+
+%% ── EDUCATION ───────────────────────────────────────────────────────
+\section*{Education}
+{%- for edu in education %}
+
+\textbf{ {{- edu.institution | latex -}} } \hfill {{ edu.period | latex }} \\
+{{ edu.degree_abbrev | latex }}
+{%- if not loop.last %}
+
+\vspace{4pt}
+{%- endif %}
+{%- endfor %}
+
+%% ── CERTIFICATIONS ──────────────────────────────────────────────────
+{%- if certifications %}
+\section*{Certifications}
+\begin{itemize}[leftmargin=0.15in]
+{%- for cert in certifications %}
+    \item {{ cert.year | latex }}, {{ cert.name | latex }}
+{%- endfor %}
+\end{itemize}
+{%- endif %}
+
+%% ── EXPERIENCE ──────────────────────────────────────────────────────
+\section*{Experience}
+{%- for exp in experiences %}
+
+\textbf{ {{- exp.title | latex -}} } --- \textit{ {{- exp.company | latex -}} }
+\hfill \textit{ {{- exp.period | latex -}} }
+\begin{itemize}[leftmargin=0.15in]
+{%- for bullet in exp.bullets %}
+    \item {{ bullet | latex }}
+{%- endfor %}
+\end{itemize}
+{%- endfor %}
+
+%% ── PROJECTS ────────────────────────────────────────────────────────
+{%- if projects %}
+\section*{Projects}
+{%- for proj in projects %}
+
+\textbf{ {{- proj.name | latex -}} }
+{%- if proj.tech_stack %}
+\hfill \textbf{ {{- proj.tech_stack | join(', ') | latex -}} }
+{%- endif %}
+\begin{itemize}[leftmargin=0.15in]
+{%- for bullet in proj.bullets %}
+    \item {{ bullet | latex }}
+{%- endfor %}
+\end{itemize}
+{%- endfor %}
+{%- endif %}
+
+\end{document}

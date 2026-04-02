@@ -62,3 +62,11 @@ chat/out/
 # Logs
 *.log
 logs/
+
+output/
+*.pdf
+dashboard/.next/
+dashboard/node_modules/
+frontend/.next/
+frontend/node_modules/
+*.bak

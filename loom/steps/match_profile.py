@@ -72,6 +72,39 @@ MATCH_USER_PROMPT = """## Candidate Profile
 
 ---
 
+6. Score each work experience for relevance to THIS specific JD (1-10).
+   Relevance = overlap between what the candidate DID in that role and what
+   THIS job requires. Ask: "If the hiring manager saw this experience, would
+   it directly support hiring this candidate for THIS role?"
+
+   8-10 Core match: The primary work done directly addresses the JD's main
+   requirements. A hiring manager would consider this strong evidence.
+   5-7 Partial match: Some overlap — domain matches but tech differs, or
+   tech matches but domain differs. Useful supporting evidence.
+   2-4 Weak match: Work is in a different domain from what the JD requires.
+   Tech stack may overlap but actual work is unrelated. Example: frontend
+   UI work for a data science role, or pipeline work for a UI design role.
+   1 No match: Completely different domain and tech stack.
+
+   IMPORTANT: Score the WORK done, not the company brand, team size, or
+   vague transferable skills. Score based on whether the candidate's actual
+   deliverables would be directly relevant in the new role.
+
+   DISTINGUISH TOOL-BUILDING FROM DOMAIN WORK:
+   Counts as domain experience: candidate personally performed the analysis,
+   designed the experiment/model, or interpreted results and made decisions.
+   Does NOT count: candidate built a tool that OTHERS use for the domain,
+   or provided infrastructure that enables the domain.
+   Example: "Built A/B testing platform for engineers" = software engineering,
+   NOT A/B testing experience. "Ran A/B tests and analyzed statistical
+   significance" = direct A/B testing experience.
+   Apply this distinction for any analytical, statistical, or ML requirement.
+
+7. Identify the 2-3 most important capability areas this JD is looking for.
+   Choose from: data_analysis, software_engineering, data_engineering,
+   research, scale, collaboration, frontend, devops.
+   Return as "jd_focus" in the JSON.
+
 Return a JSON object with this exact structure:
 {{
   "matched": [
@@ -83,7 +116,15 @@ Return a JSON object with this exact structure:
     {{"requirement": "requirement", "evidence": "partial evidence"}}
   ],
   "score": 7,
-  "reasoning": "brief explanation of the score"
+  "reasoning": "brief explanation of the score",
+  "experience_relevance": {{
+    "Company Name": {{
+      "score": 8,
+      "matched_skills": ["Python", "SQL"],
+      "reasoning": "brief reason"
+    }}
+  }},
+  "jd_focus": ["data_analysis", "software_engineering"]
 }}
 
 Return ONLY the JSON, no markdown code blocks, no explanation."""
@@ -113,6 +154,8 @@ class MatchProfileStep(Step):
         self.storage = storage or InMemoryDataStorage()
         self.profile_repo = ProfileRepository(self.storage)
         self.jd_repo = JDRepository(self.storage)
+        # Configure Claude with storage for usage tracking
+        self.claude.set_storage(self.storage)
 
     async def run(self, context: PipelineContext) -> PipelineContext:
         # Get parsed JD
@@ -120,7 +163,13 @@ class MatchProfileStep(Step):
         if not jd_parsed:
             raise StepError(self.name, "context.data['jd_parsed'] is required")
 
-        # Get full profile
+        # Set context for usage tracking
+        self.claude.set_context(
+            workflow_run_id=context.workflow_id,
+            step_name=self.name,
+            user_id=context.user_id,
+        )
+
         profile_data = await self.profile_repo.get_full_profile(context.user_id)
         if not profile_data:
             raise StepError(
@@ -128,7 +177,17 @@ class MatchProfileStep(Step):
                 "No profile found. Please complete your profile first."
             )
 
-        # Build prompt
+        try:
+            from loom.services.logger import logger
+            await logger.info("workflow", "step.match_profile.input",
+                f"Matching profile against JD: {jd_parsed.get('title', '?')}",
+                step_name=self.name,
+                skills_count=len(profile_data.get("skills", [])),
+                experiences_count=len(profile_data.get("experiences", [])),
+                required_skills=jd_parsed.get("required_skills", []))
+        except Exception:
+            pass
+
         prompt = self._build_prompt(profile_data, jd_parsed)
 
         # Call Claude for matching
@@ -139,13 +198,27 @@ class MatchProfileStep(Step):
                 system=MATCH_SYSTEM_PROMPT,
             )
         except ValueError as e:
-            raise StepError(self.name, f"Failed to parse match result: {e}")
+            try:
+                from loom.services.logger import logger
+                await logger.warning("workflow", "step.match_profile.parse_warning",
+                    f"JSON parse failed, using defaults: {str(e)[:200]}",
+                    step_name=self.name)
+            except Exception:
+                pass
+            match_result = {
+                "matched": [],
+                "hard_skill_gaps": list(jd_parsed.get("required_skills", [])),
+                "soft_requirements": [],
+                "partially_matched": [],
+                "score": 5,
+                "reasoning": "Parse failed, using defaults",
+                "experience_relevance": {},
+                "jd_focus": ["software_engineering"],
+            }
 
-        # Validate result
         if "score" not in match_result:
-            raise StepError(self.name, "Match result missing 'score' field")
+            match_result["score"] = 5
 
-        # Update JDRecord if id provided
         jd_record_id = context.data.get("jd_record_id")
         if jd_record_id:
             await self.jd_repo.update_match_score(
@@ -153,7 +226,18 @@ class MatchProfileStep(Step):
                 match_result["score"],
             )
 
-        # Write result to context
+        try:
+            from loom.services.logger import logger
+            gaps = match_result.get("hard_skill_gaps", [])
+            await logger.info("workflow", "step.match_profile.output",
+                f"Match score: {match_result['score']}/10, "
+                f"{len(match_result.get('matched', []))} matched, "
+                f"{len(gaps)} gaps",
+                step_name=self.name, score=match_result["score"],
+                gaps=gaps[:5])
+        except Exception:
+            pass
+
         new_data = {**context.data, "match_result": match_result}
         return context.model_copy(update={"data": new_data})
 
