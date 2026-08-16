@@ -2140,16 +2140,21 @@ async def scout_demo_thumb(
 
 @app.get("/api/scout/leads/{lead_id}/demo")
 async def preview_scout_demo(lead_id: str, user_id: str = CurrentUser) -> Response:
-    """Serve the generated demo so it can be previewed before publishing."""
-    from loom.services.demo_builder import DEMO_ROOT
+    """Serve the generated demo so it can be previewed before publishing.
 
+    Read from the row, not from disk. `demo_html` is the source of truth —
+    the public /demo/[slug] route has always read it straight from Postgres —
+    and the copy under output/ is a build artefact of whichever machine
+    happened to run the build. On a container with an ephemeral filesystem
+    that copy is simply absent, and the preview would 404 on a demo that
+    exists.
+    """
     _, lead = await _require_lead(lead_id, user_id, kind="freelance")
-    slug = lead.get("demo_slug")
-    path = DEMO_ROOT / slug / "index.html" if slug else None
-    if not path or not path.exists():
+    html = lead.get("demo_html")
+    if not html:
         raise HTTPException(status_code=404, detail="No demo built yet")
     return Response(
-        content=path.read_text(encoding="utf-8"),
+        content=html,
         media_type="text/html",
         # Never cache: this is a preview of something being iterated on, and
         # a browser holding yesterday's copy looks exactly like "selecting a

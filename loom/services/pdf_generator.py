@@ -3,7 +3,9 @@
 import asyncio
 import logging
 import os
+import re
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -11,6 +13,25 @@ logger = logging.getLogger(__name__)
 
 # Output directory for compiled PDFs
 OUTPUT_DIR = Path("output/resumes")
+
+
+
+# The Chinese template asks for "Heiti SC", which exists on macOS and nowhere
+# else. xelatex does not fall back — it fails the whole compile — so the font
+# has to be whatever the machine actually has. LOOM_CJK_FONT names it; the
+# default matches the font installed in the container image.
+DEFAULT_CJK_FONT = "Noto Sans CJK SC"
+_CJK_FONT_RE = re.compile(r"\\setCJKmainfont\{[^}]*\}")
+
+
+def _with_local_cjk_font(content_tex: str) -> str:
+    """Point \\setCJKmainfont at a font this machine has."""
+    font = os.environ.get("LOOM_CJK_FONT")
+    if not font:
+        # macOS keeps the template's own choice; anything else needs the
+        # container's font, because Heiti SC will not be there.
+        font = "Heiti SC" if sys.platform == "darwin" else DEFAULT_CJK_FONT
+    return _CJK_FONT_RE.sub(f"\\\\setCJKmainfont{{{font}}}", content_tex)
 
 
 class PDFGenerator:
@@ -34,6 +55,8 @@ class PDFGenerator:
         # Detect if Chinese template (uses xeCJK) → needs xelatex
         use_xelatex = "xeCJK" in content_tex or "\\setCJKmainfont" in content_tex
         compiler = "xelatex" if use_xelatex else "pdflatex"
+        if use_xelatex:
+            content_tex = _with_local_cjk_font(content_tex)
 
         # PM2/launchd processes often lack /Library/TeX/texbin in PATH,
         # so fall back to the standard MacTeX install location.

@@ -1,0 +1,28 @@
+# Secrets never enter the image — Fly holds them, set with `fly secrets set`.
+.env
+.env.*
+
+.git
+.gitignore
+.claude
+.agents
+.pytest_cache
+.ruff_cache
+.mypy_cache
+__pycache__
+*.pyc
+
+# The dashboard deploys to Vercel, not here.
+dashboard
+frontend
+chat
+
+# Build artefacts: PDFs recompile from content_tex, demos are served from
+# Postgres. Copying a laptop's copies in would just make the image bigger.
+output
+.loom-tmp
+
+tests
+docs
+*.md
+!README.md
