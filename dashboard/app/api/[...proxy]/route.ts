@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, PUBLIC_PROFILE_USER } from "@/lib/auth";
+import { resolveActingUser } from "@/lib/acting-user";
 
 const API_URL = process.env.LOOM_API_URL || "http://localhost:8001";
 const API_KEY = process.env.LOOM_API_KEY || "";
@@ -16,17 +17,6 @@ const ALLOWED_PREFIXES = [
   "/api/health",
 ];
 
-/** The one thing a stranger may fetch: the profile behind /expo, read-only.
- *
- * middleware.ts excludes /expo so the showcase page opens without an account,
- * and that page is a client component calling /api/profile — so the carve-out
- * has to live here too. It is deliberately narrow: GET only, that exact path,
- * and always resolved to PUBLIC_PROFILE_USER regardless of what the caller
- * asks for. Every other route, and every write, needs a session. */
-function isPublicRead(req: NextRequest): boolean {
-  return req.method === "GET" && req.nextUrl.pathname === "/api/profile";
-}
-
 async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
@@ -36,18 +26,18 @@ async function proxy(req: NextRequest) {
 
   // The API trusts X-Loom-User because only this proxy can set it: the Bearer
   // key never leaves the server, so a browser cannot call the API directly and
-  // claim to be someone else.
-  let actingAs: string;
-  if (isPublicRead(req)) {
-    actingAs = PUBLIC_PROFILE_USER;
-  } else {
-    const session = await auth();
-    const email = session?.user?.email;
-    if (!email) {
-      return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
-    }
-    actingAs = email;
+  // claim to be someone else. Who that is, is decided in lib/acting-user.ts.
+  const session = await auth();
+  const acting = resolveActingUser(
+    req.method,
+    pathname,
+    session?.user?.email,
+    PUBLIC_PROFILE_USER,
+  );
+  if (acting.kind === "unauthenticated") {
+    return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   }
+  const actingAs = acting.userId;
 
   const upstream = `${API_URL}${pathname}${search}`;
   const headers: Record<string, string> = {

@@ -10,8 +10,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root. Unanchored, `lib/` matches a directory of that
+# name at any depth — which silently excluded all of dashboard/lib, the API
+# client and the sign-in allowlist among it, from every commit ever made.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
