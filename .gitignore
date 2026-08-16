@@ -77,3 +77,13 @@ frontend/node_modules/
 
 # Scratch space for inline email attachments (Lark requires relative paths)
 .loom-tmp/
+
+# Agent tooling. Listed piece by piece rather than ignoring `.claude/` whole,
+# so shared project config (settings.json, a project-specific skill) can still
+# be committed later without fighting this file.
+.claude/settings.local.json
+.claude/skills/
+.agents/skills/
+# Full working copies of this repo, created per task. Committing them would
+# vendor the entire codebase inside itself.
+.claude/worktrees/
