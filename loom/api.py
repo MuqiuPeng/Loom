@@ -1630,10 +1630,16 @@ async def download_resume_pdf(
 
     # This route is exempt from AuthMiddleware: require either a valid
     # per-artifact signature (Notion links) or the Bearer key.
-    from loom.services.signing import resume_pdf_sig
+    from loom.services.signing import SigningNotConfigured, resume_pdf_sig
     auth = (request.headers.get("authorization", "") if request else "")
     bearer_ok = auth.startswith("Bearer ") and auth[7:] == LOOM_API_KEY
-    sig_ok = bool(sig) and _hmac.compare_digest(sig, resume_pdf_sig(str(resume_id)))
+    try:
+        sig_ok = bool(sig) and _hmac.compare_digest(sig, resume_pdf_sig(str(resume_id)))
+    except SigningNotConfigured:
+        # No secret configured means no link can be valid — 401 like any other
+        # bad signature, rather than a 500 that reads like the PDF is broken.
+        logger.warning("Signed PDF link rejected: LOOM_SIGNING_SECRET is not set")
+        sig_ok = False
     if not (bearer_ok or sig_ok):
         raise HTTPException(status_code=401, detail="Authentication required")
 
