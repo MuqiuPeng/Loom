@@ -1,0 +1,405 @@
+{
+  "_comment": [
+    "Named art directions for generated demos.",
+    "",
+    "Why named directions instead of adjectives: 'modern, clean, warm' produces",
+    "the same centred-stack page every time. A direction with specific numbers —",
+    "type scale, grid split, how many times the accent may appear — produces",
+    "something that looks decided rather than defaulted.",
+    "",
+    "Constraints every direction inherits: no external requests of any kind, so",
+    "system fonts only, no icon sets, no JavaScript. Distinctiveness has to come",
+    "from type, layout, colour and inline SVG."
+  ],
+  "directions": {
+    "editorial": {
+      "label": "Editorial",
+      "suits": [
+        "cafe",
+        "bakery",
+        "coffee",
+        "brunch"
+      ],
+      "fonts": {
+        "display": "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+        "body": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Serif display at clamp(3rem, 11vw, 7rem), letter-spacing -0.03em, line-height 0.95.",
+        "SIGNATURE — the name breaks the measure: it overhangs the content column into the right margin, the way a masthead runs wider than the columns under it. It stays fully on screen; this is breaking the measure, not cropping the name.",
+        "Hero is type-led: the name is the image. If a photograph exists it sits BESIDE the name in a 5/7 asymmetric split, never behind it.",
+        "Body copy in a 60-70 character measure, never full width.",
+        "Section headings small, uppercase, letter-spaced 0.18em, sitting above a hairline rule.",
+        "One accent colour, used exactly three times on the page.",
+        "Generous vertical rhythm: 6-8rem between sections on desktop."
+      ]
+    },
+    "warm_minimal": {
+      "label": "Warm minimal",
+      "suits": [
+        "restaurant",
+        "deli",
+        "grocer",
+        "health"
+      ],
+      "fonts": {
+        "display": "Futura, 'Futura PT', 'Century Gothic', 'Trebuchet MS', sans-serif",
+        "body": "Charter, 'Bitstream Charter', Georgia, 'Iowan Old Style', serif"
+      },
+      "rules": [
+        "Geometric display against an old-style serif body. The previous 'one typeface, three weights' rule left this direction with no typographic identity at all — Helvetica set against Helvetica is not a pairing.",
+        "SIGNATURE — the shelf strip: every section heading sits on a full-bleed band of the accent running off both edges of the page, the way a price strip runs along a shelf edge. It is the only place the accent appears at full strength.",
+        "Off-white paper, ink that is brown-black rather than pure black, a single earth accent.",
+        "Full-bleed hero photograph with a warm CSS filter (sepia .15 saturate 1.1); if there is no photograph, a very large flat colour field with the name set low-left.",
+        "Content sits in a max-width 34rem column offset to the left, not centred.",
+        "Rounded 2px corners at most. No shadows anywhere.",
+        "Whitespace is the design: at least 5rem of air above every heading."
+      ]
+    },
+    "bold_signage": {
+      "label": "Bold signage",
+      "suits": [
+        "bar",
+        "pub",
+        "burger",
+        "pizza",
+        "takeaway"
+      ],
+      "fonts": {
+        "display": "Impact, 'Haettenschweiler', 'Arial Narrow Bold', sans-serif",
+        "body": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Condensed display type filling the full width, clamp(3.5rem, 16vw, 9rem), uppercase, line-height 0.85.",
+        "High-contrast palette: near-black ground, one saturated accent, paper white text.",
+        "Hard edges, thick 3-4px rules between sections, zero border radius.",
+        "Photographs get a duotone treatment via mix-blend-mode: luminosity over the accent.",
+        "Menu items in a two-column list with a dotted leader between name and price.",
+        "Diagonal or offset section dividers using an inline SVG polygon."
+      ]
+    },
+    "quiet_luxury": {
+      "label": "Quiet luxury",
+      "suits": [
+        "wine",
+        "fine_dining",
+        "salon",
+        "studio",
+        "jewel"
+      ],
+      "fonts": {
+        "display": "'Didot', 'Bodoni MT', 'Playfair Display', Georgia, serif",
+        "body": "'Optima', Candara, 'Gill Sans', sans-serif"
+      },
+      "rules": [
+        "High-contrast serif display, letter-spacing 0.02em, generous 0.5em word spacing in the wordmark.",
+        "SIGNATURE — the mat: a 1px hairline frame inset from all four edges of the viewport, fixed, so the whole page reads as something mounted rather than something scrolled. Nothing else in the set does this.",
+        "Near-monochrome: bone, charcoal, one muted metallic accent used only for hairlines.",
+        "Everything centred and symmetrical — this is the one direction where symmetry is correct.",
+        "Hairline 1px rules above and below section headings, inset 20% from each side.",
+        "Photographs desaturated to 60% with a subtle inner vignette.",
+        "Nothing bold. Weight contrast comes from size and spacing only."
+      ]
+    },
+    "modern_grid": {
+      "label": "Callout",
+      "_pinned_subject": [
+        "A business you ring, not one you browse: plumber, sparky, removalist,",
+        "locksmith, auto, accountant. The reader is one-handed on a phone and",
+        "may be standing under a leak. The page has one job — get the number",
+        "pressed — and everything else is subordinate to it.",
+        "",
+        "This is also default_direction, so it has to degrade sanely for a",
+        "business nobody categorised. A phone number that never leaves the",
+        "screen degrades fine; a 12-column agency grid did not."
+      ],
+      "suits": [
+        "plumber",
+        "electrician",
+        "trade",
+        "locksmith",
+        "removalist",
+        "mechanic",
+        "cleaner",
+        "accountant"
+      ],
+      "fonts": {
+        "display": "'Avenir Next Condensed', 'Futura Condensed', 'Arial Narrow', Helvetica, sans-serif",
+        "body": "Verdana, 'Lucida Grande', 'DejaVu Sans', sans-serif",
+        "utility": "Menlo, Consolas, monospace"
+      },
+      "rules": [
+        "The phone number is the largest type on the page and never leaves the screen: a sticky bar, bottom-fixed on a phone where the thumb is, top-sticky on desktop.",
+        "Condensed display against a wide body. That contrast IS the typographic idea — condensed for the name and the number, Verdana for anything that has to be read while distracted.",
+        "The accent appears exactly once, on the thing you press. Everywhere else is near-black ink on near-white ground.",
+        "No cards, no borders, no radius. The boldness is spent on the callout and the rest stays plain on purpose.",
+        "Body copy in one measure, one rhythm, 17px. Precision in spacing is what carries a plain layout.",
+        "Service area, licence numbers and hours in the monospace utility face — they are data, and setting them as data is true to the trade.",
+        "If there is no phone number the bar carries the address instead, and if there is neither, this direction is the wrong pick."
+      ]
+    },
+    "glass_dark": {
+      "label": "Dark glass",
+      "suits": [
+        "bar",
+        "night",
+        "lounge",
+        "club",
+        "karaoke",
+        "dessert"
+      ],
+      "fonts": {
+        "display": "Copperplate, 'Copperplate Gothic Light', Optima, 'Gill Sans', sans-serif",
+        "body": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Engraved display type, uppercase and widely tracked — the lettering on a cocktail bar's door, not another grotesk. Set smaller than the other directions because Copperplate runs large in caps.",
+        "Deep near-black ground (#0d0f14 or the palette ink darkened), never pure #000.",
+        "Backdrop: build an aurora — two or three large blurred colour blobs from the palette behind the hero — and lay grain over the whole page. See backdrop_recipes.",
+        "Content sits on glass panels; follow glass_surface exactly, prefix included.",
+        "Display type in white at clamp(2.6rem, 9vw, 5.5rem), weight 600, letter-spacing -0.03em.",
+        "Accent used only for small hot details: a hairline, a hover state, one word.",
+        "If photographs exist, one full-bleed image sits behind the hero glass at 55% brightness — that is what the blur is for.",
+        "Everything else stays quiet. The atmosphere carries it, not decoration."
+      ]
+    },
+    "craft_industrial": {
+      "label": "Craft industrial",
+      "suits": [
+        "roastery",
+        "brewery",
+        "workshop",
+        "mechanic",
+        "joinery",
+        "distillery"
+      ],
+      "fonts": {
+        "display": "'Helvetica Neue', Arial, sans-serif",
+        "body": "'SF Mono', Menlo, Consolas, monospace"
+      },
+      "rules": [
+        "Monospace body copy — it reads as workshop documentation, not marketing.",
+        "Raw concrete and steel palette: warm grey ground, one oxide accent.",
+        "SIGNATURE — exposed structure: visible 1px rules forming a grid, with labels set out in the margins the way a drawing is annotated.",
+        "Display type uppercase, tightly tracked, sitting on a baseline rule.",
+        "Specifications set as a definition list — weights, origins, times.",
+        "No rounded corners anywhere. Nothing decorative."
+      ]
+    },
+    "soft_pastel": {
+      "label": "Soft pastel",
+      "suits": [
+        "dessert",
+        "florist",
+        "nail",
+        "beauty",
+        "gelato",
+        "patisserie"
+      ],
+      "fonts": {
+        "display": "Cochin, 'Hoefler Text', Garamond, Georgia, serif",
+        "body": "'Avenir Next', 'Segoe UI', sans-serif"
+      },
+      "rules": [
+        "An old-style French serif for the name against the geometric sans body. Avenir Next set against Avenir Next was no pairing; a patisserie's own lettering is almost never a geometric sans.",
+        "Palette drawn up not down: cream, blush, one saturated berry accent.",
+        "Large border-radius — 24px on every card and image.",
+        "Soft shadows only, never hard edges: 0 8px 32px rgba at 6% opacity.",
+        "An inline SVG blob or arch shape behind the hero, low opacity.",
+        "Plenty of air; nothing should feel crowded or urgent."
+      ]
+    },
+    "heritage_classic": {
+      "label": "Heritage",
+      "suits": [
+        "butcher",
+        "barber",
+        "pub",
+        "bakery",
+        "grocer",
+        "hardware"
+      ],
+      "fonts": {
+        "display": "'Baskerville', 'Hoefler Text', Garamond, serif",
+        "body": "Georgia, 'Iowan Old Style', serif"
+      },
+      "rules": [
+        "Old-style serif throughout, including body — this trade predates sans.",
+        "Cream paper, deep green or oxblood ink, gold hairline accents.",
+        "A centred wordmark with rules above and below, like a shop sign.",
+        "Small caps for section headings, letter-spaced 0.12em.",
+        "An established-year line if one is known, never invented.",
+        "Ornamental SVG rule between sections — a simple diamond or rosette."
+      ]
+    },
+    "clinical_calm": {
+      "label": "Clinical calm",
+      "suits": [
+        "clinic",
+        "dentist",
+        "physio",
+        "medical",
+        "optometrist",
+        "vet"
+      ],
+      "fonts": {
+        "display": "-apple-system, 'Segoe UI', Helvetica, sans-serif",
+        "body": "-apple-system, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Cool, low-saturation palette: near-white, slate text, one calm teal.",
+        "Everything left-aligned in a single readable column; no visual surprises.",
+        "Large tap targets and 17px body text — the audience is often older.",
+        "Booking and phone treated as the primary action, repeated top and bottom.",
+        "Reassuring whitespace; no marketing language, no urgency devices.",
+        "Contrast well above the minimum — aim for 7:1 on body text."
+      ]
+    },
+    "neon_late": {
+      "label": "Neon late",
+      "suits": [
+        "takeaway",
+        "kebab",
+        "noodle",
+        "ramen",
+        "late",
+        "arcade"
+      ],
+      "fonts": {
+        "display": "Impact, 'Arial Black', sans-serif",
+        "body": "-apple-system, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Near-black ground with two clashing neon accents — magenta and cyan work.",
+        "Display type with a coloured text-shadow glow, 0 0 24px of the accent.",
+        "Menu items in a dense two-column grid; this is a page for choosing fast.",
+        "Hard 2px accent borders on interactive elements, glowing on hover.",
+        "A subtle repeating-linear-gradient scanline at 4% opacity.",
+        "Loud but legible: body copy stays plain white at normal weight."
+      ]
+    },
+    "swiss_grid": {
+      "label": "Swiss grid",
+      "_source": [
+        "Adapted from the Swiss Grid seed in xiaopu-ai/web-design (MIT), which",
+        "is vendored at .claude/skills/web-design. Its font stack is Google-",
+        "hosted and demos make no external requests, so only the structure",
+        "came across."
+      ],
+      "_single_family": [
+        "display and body are the same family on purpose, and this is the one",
+        "direction where that is not the fault the audit was looking for.",
+        "Swiss practice is one neutral face carrying everything, with contrast",
+        "coming from weight, size and case. Do not 'fix' this by pairing it."
+      ],
+      "suits": [
+        "bookshop",
+        "optician",
+        "tailor",
+        "framing",
+        "printer",
+        "gallery",
+        "stationery",
+        "record"
+      ],
+      "fonts": {
+        "display": "'Helvetica Neue', Helvetica, Arial, sans-serif",
+        "body": "'Helvetica Neue', Helvetica, Arial, sans-serif"
+      },
+      "rules": [
+        "Black on white, and one red. No third colour, no tint, no grey panel — grey comes only from type at reduced weight.",
+        "Zero border radius anywhere, and no shadows. Every edge is a right angle.",
+        "SIGNATURE — vertical section labels: headings rotate 90 degrees and sit in the left margin along the grid line, running bottom-to-top. The label is doing structural work, not decorating.",
+        "A strict two-column field on desktop: a narrow label rail and a wide content column, the same rail width in every section so the grid is visible without being drawn.",
+        "Flush left, ragged right, always. Never justify, never centre anything.",
+        "Enormous weight contrast from one family: display at weight 700 and clamp(2.8rem, 10vw, 6rem), body at weight 400 and 1rem. Nothing in between.",
+        "Numbers and prices align on a tabular column at the right edge of the content field."
+      ]
+    },
+    "photo_abstract": {
+      "label": "Photo abstract",
+      "_source": [
+        "Adapted from the photo-abstract-editorial Codex skill,",
+        "github.com/ZzzLc0405/photo-abstract-editorial. That skill is",
+        "non-commercial only, so none of its wording is used here — only the",
+        "arrangement, which is an idea rather than a work. If this direction",
+        "is ever the basis of something sold on, ask the author first."
+      ],
+      "requires_photography": true,
+      "suits": [
+        "photographer",
+        "gallery",
+        "studio",
+        "florist",
+        "boutique",
+        "interior",
+        "ceramics",
+        "architect"
+      ],
+      "fonts": {
+        "display": "'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif",
+        "body": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Needs one strong photograph. Without photography this direction has nothing to work with — reject it rather than picking it.",
+        "The photograph is preserved, not styled: object-fit contain, no filter, no crop, no text laid over it. Letterboxing into the ivory is correct.",
+        "Directly beneath it, joined with no gap or frame, a flat ivory panel — #f4f0e8, continuous across the whole page, no gradient or texture.",
+        "The panel carries a sparse inline-SVG abstraction: at most five marks — an axis, a mass, a rhythm, a subject, an interval. A sixth turns it into decoration.",
+        "Photo and panel are not a 50/50 split. The photo dominates; the panel is the quiet half.",
+        "Title in a restrained editorial serif at clamp(2.4rem, 7.5vw, 4.2rem), weight 400, left-aligned below the marks. Never bold, never uppercase.",
+        "Muted throughout: ink at low opacity for the marks, the accent used twice only — one soft field and one solid rule.",
+        "Whitespace is doing the work. 4.5rem between bands, hairline rules at 14% opacity instead of borders."
+      ]
+    },
+    "market_fresh": {
+      "label": "Market fresh",
+      "suits": [
+        "grocer",
+        "greengrocer",
+        "market",
+        "organic",
+        "deli",
+        "farm"
+      ],
+      "fonts": {
+        "display": "'Trebuchet MS', 'Segoe UI', sans-serif",
+        "body": "-apple-system, 'Segoe UI', Helvetica, sans-serif"
+      },
+      "rules": [
+        "Bright, high-key palette: paper white, leaf green, one earth-red accent.",
+        "Chalkboard-style headings — white display type on a dark green panel.",
+        "Produce lists set as a dense, scannable grid, price aligned right.",
+        "Hand-drawn feel via a slightly rotated (-1deg) heading panel.",
+        "Photography, when present, runs edge to edge with no border.",
+        "Seasonal framing: a strip along the top for what's good right now."
+      ]
+    }
+  },
+  "universal_rules": [
+    "Never centre everything by default; choose alignment deliberately per direction.",
+    "Type scale must span at least 4x from body to display. Timid scale is the single biggest reason a page reads as a template.",
+    "Pick ONE idea and commit — an unexpected type size, a full-bleed colour field, an asymmetric split. A page with no idea reads as generated.",
+    "Every colour must come from the given palette. No gradients unless the direction calls for one.",
+    "Mobile is not a shrunken desktop: reflow the layout, keep the display type large, keep the idea intact.",
+    "A flat single-colour background is the weakest possible choice. Use a backdrop recipe unless the direction explicitly calls for flat paper."
+  ],
+  "default_direction": "modern_grid",
+  "backdrop_recipes": {
+    "_note": "Ways to build a rich background with zero external assets. Glass needs something behind it to blur — over a flat colour it does nothing — so pair any glass surface with one of these.",
+    "mesh": "Three or four oversized radial-gradients at low opacity, placed off-canvas at different corners, over the base colour. Blur them with a large filter or keep the stops soft. This is what reads as a 'designed' background rather than a fill.",
+    "grain": "An inline SVG feTurbulence (baseFrequency 0.8, numOctaves 3) as a data-URI background-image at 3-6% opacity over the whole page. It kills the plastic flatness of pure CSS colour.",
+    "aurora": "Two or three large blurred colour blobs (border-radius 50%, filter: blur(80px)) positioned absolutely behind the hero, drawn from the palette. Keep them below the fold edge so they read as atmosphere.",
+    "hatch": "A repeating-linear-gradient hairline pattern at 2-4% opacity for a technical, drafted feel."
+  },
+  "glass_surface": {
+    "_note": "Only for directions that call for it. Rules exist because naive glassmorphism fails in three specific ways.",
+    "rules": [
+      "backdrop-filter: blur(16px) saturate(140%) AND -webkit-backdrop-filter with the same value — Safari still needs the prefix and a shop owner on an iPhone is the likeliest viewer.",
+      "The panel needs its own translucent fill (rgba of the ink colour at 0.35-0.55) — backdrop-filter alone leaves text sitting on raw noise.",
+      "A 1px hairline border in rgba(255,255,255,0.12) and a soft inset highlight on the top edge. Without the edge it reads as a muddy box, not glass.",
+      "Body text on glass must stay at 4.5:1 contrast. If the backdrop is busy, darken the panel fill rather than lightening the text.",
+      "Glass is for small surfaces — a nav bar, a card, a menu panel. Never a full-page overlay; large backdrop-filter areas stutter badly on older phones.",
+      "@media (prefers-reduced-transparency: reduce) — drop the blur and use a solid panel."
+    ]
+  }
+}

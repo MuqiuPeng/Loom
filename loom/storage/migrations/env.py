@@ -5,11 +5,19 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from loom.storage.models import Base
+
+# The app calls this on import; alembic runs outside the app, so without it
+# DATABASE_URL is unset here and the fallback below silently points every
+# migration at a local Postgres that hasn't been the real database for a
+# while. A migration that reports success against the wrong database is a
+# considerably worse outcome than one that fails to connect.
+load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -64,10 +72,21 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
+    # Same pgbouncer caveat as loom/storage/database.py: against Supabase's
+    # transaction pooler, asyncpg's prepared statements fail on the very first
+    # query. Alembic builds its own engine, so the fix has to be repeated here
+    # or `alembic upgrade` dies before running a single migration.
+    url = config.get_main_option("sqlalchemy.url", "")
+    connect_args = (
+        {"statement_cache_size": 0, "prepared_statement_cache_size": 0}
+        if ":6543" in url or "pooler.supabase.com" in url
+        else {}
+    )
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

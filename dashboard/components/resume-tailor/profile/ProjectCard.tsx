@@ -177,7 +177,7 @@ export default function ProjectCard({ project, lang, onUpdate, linkedName, linke
     <div id={`project-${project.id}`} className={`bg-white rounded-lg border border-gray-200 p-6 scroll-mt-4 ${!isVisible ? "opacity-50" : ""}`}>
       {editing ? (
         <div className="space-y-3 mb-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               placeholder="Project name" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <input value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}
@@ -186,7 +186,7 @@ export default function ProjectCard({ project, lang, onUpdate, linkedName, linke
           <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             placeholder="Description" rows={2}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
               placeholder="Start (YYYY-MM)" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <input value={draft.end_date} onChange={(e) => setDraft({ ...draft, end_date: e.target.value })}
@@ -227,7 +227,7 @@ export default function ProjectCard({ project, lang, onUpdate, linkedName, linke
                   {linkedName || "Link..."}
                 </button>
                 {linkDropdown && linkOptions && (
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 w-56 max-h-48 overflow-y-auto">
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 w-48 sm:w-56 max-h-48 overflow-y-auto">
                     {linkedName && (
                       <button
                         onClick={() => changeLink(null)}

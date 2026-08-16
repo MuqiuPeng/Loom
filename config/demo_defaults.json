@@ -1,0 +1,97 @@
+{
+  "_comment": [
+    "Fallbacks used when a harvest comes up short. Edit freely — read at",
+    "generation time, no restart needed.",
+    "",
+    "HARD RULE: nothing here may state a fact about the business. No menu",
+    "items, no prices, no hours, no address. Those come from their own site or",
+    "they are left out.",
+    "",
+    "But 'no facts' must not become 'empty page'. For a shop with no website",
+    "the demo IS the entire pitch, and a page of empty boxes says 'you have",
+    "nothing' when it needs to say 'look what this could be'. So a thin harvest",
+    "gets MORE craft, not less: every section fully designed, populated with",
+    "visibly-labelled sample rows, plus the capability strip below."
+  ],
+
+  "attribution": {
+    "built_by": "Robin Peng",
+    "email": "robin@robindev.org",
+    "headline": "This preview was built for you",
+    "body": "An independent mock-up of what your site could look like — not affiliated with or authorised by the business. Built in an afternoon; the real one takes about a week. Happy to hand over the source, change anything, or take it down.",
+    "cta": "Reply and I'll send the real thing"
+  },
+
+  "placeholder_note": "Sample — your content goes here",
+
+  "capability_showcase": {
+    "intro": "When a section has no real data, do NOT reduce it to a sentence in a box. Build the section out fully, in the chosen art direction, using sample rows that are obviously labelled as samples. The owner must see the finished shape and the quality of the craft.",
+    "techniques": [
+      "A sticky header that condenses as the page scrolls (CSS position: sticky, no JavaScript).",
+      "Menu sections as native <details>/<summary> accordions — expandable, keyboard accessible, zero script.",
+      "A horizontal photo strip using scroll-snap, if any photographs exist.",
+      "Real hover and focus states on every link and button, with a visible focus ring.",
+      "tel: and mailto: links so a phone taps straight through to a call.",
+      "prefers-reduced-motion honoured on any transition.",
+      "prefers-color-scheme: a considered dark variant, not an inverted one.",
+      "Inline SVG for any mark, divider or icon — never an image file, never an emoji."
+    ],
+    "sample_row_rule": "Sample rows carry generic labels ('Your signature dish', 'Second course') and an em dash where a price would sit. Never a number that could be mistaken for their pricing.",
+    "strip": {
+      "heading": "What you'd be getting",
+      "items": [
+        "Loads in under a second on mobile data",
+        "Reads properly on every phone, not a shrunken desktop",
+        "You update the menu yourself, no developer needed",
+        "Ready for Google — proper titles, descriptions, structure",
+        "Works with a screen reader",
+        "Yours outright: no monthly platform fee"
+      ],
+      "note": "This strip describes the deliverable, not the business — it is the one place on the page where claims are ours to make."
+    }
+  },
+
+  "sections": {
+    "menu": {
+      "heading": "Menu",
+      "sample_rows": [
+        "Your signature dish — a line of description in the owner's own words",
+        "Second item — what makes it worth ordering",
+        "Third item — kept short"
+      ],
+      "sample_groups": ["Morning", "All day"],
+      "include_when_missing": true
+    },
+    "hours": {
+      "heading": "Hours",
+      "sample_rows": [
+        "Monday to Friday — opening to closing",
+        "Saturday and Sunday — weekend times"
+      ],
+      "include_when_missing": true
+    },
+    "location": {
+      "heading": "Find Us",
+      "sample_rows": [
+        "Street address, set large enough to read at arm's length",
+        "One tap to call · one tap for directions"
+      ],
+      "include_when_missing": true
+    },
+    "gallery": {
+      "heading": "Gallery",
+      "sample_rows": ["Your photos — Instagram shots work fine"],
+      "include_when_missing": false
+    }
+  },
+
+  "palettes": {
+    "cafe": { "ink": "#2b2118", "paper": "#faf6f0", "accent": "#b5651d" },
+    "restaurant": { "ink": "#1f1b17", "paper": "#f7f3ee", "accent": "#8c2f39" },
+    "bakery": { "ink": "#33281c", "paper": "#fdf8ef", "accent": "#c98a3c" },
+    "bar": { "ink": "#14151a", "paper": "#f2f1ee", "accent": "#7a6ff0" },
+    "default": { "ink": "#1c1c1e", "paper": "#f8f7f5", "accent": "#3b6ea5" }
+  },
+
+  "no_image_treatment": "With no photographs, the type and colour must carry the whole page — a large wordmark over a considered colour field, an inline SVG texture at low opacity, and generous scale. This is a chance to show craft, not a reason to make the page thin."
+}

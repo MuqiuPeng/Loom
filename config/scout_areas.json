@@ -1,0 +1,73 @@
+{
+  "_comment": [
+    "Where to look, and why.",
+    "",
+    "The reasoning, borrowed from someone who has actually run this: skip the",
+    "mature market. In a big city the good restaurants already have good sites,",
+    "and the ones that don't are usually coasting on local word of mouth — you",
+    "cannot help them and they know it.",
+    "",
+    "Go where the website IS the shopfront. In a tourist town a visitor stands",
+    "on the street, opens Google Maps, compares three places on menu and",
+    "photos, and walks into one of them. A dead link there costs the owner a",
+    "table tonight, which is a problem worth paying to fix.",
+    "",
+    "Edit freely. `note` is the reason to be there, not decoration — if you",
+    "can't write one for a place, that is a signal in itself."
+  ],
+
+  "avoid": {
+    "note": "Not worth the calls, for opposite reasons at each end.",
+    "patterns": [
+      "CBD and inner-city dining strips — mostly already served by agencies",
+      "Suburbs whose trade is regulars, not passers-by — a bad site costs them nothing",
+      "Chains and franchises — the site is head office's decision, not the owner's",
+      "Anywhere you cannot name a reason a stranger would search before choosing"
+    ]
+  },
+
+  "regions": {
+    "NSW": [
+      { "area": "Byron Bay NSW", "note": "Heavy visitor traffic, design-conscious operators, high spend" },
+      { "area": "Katoomba NSW", "note": "Blue Mountains day-trippers decide on the street" },
+      { "area": "Huskisson NSW", "note": "Jervis Bay holiday trade, short season so the shopfront matters" },
+      { "area": "Nelson Bay NSW", "note": "Port Stephens tourism, lots of independent operators" },
+      { "area": "Kiama NSW", "note": "Coastal day trips from Sydney and Wollongong" },
+      { "area": "Bowral NSW", "note": "Southern Highlands weekenders, older money, pride purchases" },
+      { "area": "Mudgee NSW", "note": "Wine region — cellar doors and restaurants that need to look the part" }
+    ],
+    "VIC": [
+      { "area": "Lorne VIC", "note": "Great Ocean Road stop, seasonal and entirely visitor-led" },
+      { "area": "Apollo Bay VIC", "note": "Same road, smaller operators, weaker web presence" },
+      { "area": "Daylesford VIC", "note": "Spa and food weekenders, high expectations of presentation" },
+      { "area": "Bright VIC", "note": "Alpine tourism, two strong seasons" },
+      { "area": "Queenscliff VIC", "note": "Ferry traffic and day visitors" }
+    ],
+    "QLD": [
+      { "area": "Port Douglas QLD", "note": "Reef tourism, international visitors, strong budgets" },
+      { "area": "Airlie Beach QLD", "note": "Whitsundays gateway, decision made on the phone at the marina" },
+      { "area": "Noosa Heads QLD", "note": "Affluent visitors, design matters to the operators" },
+      { "area": "Montville QLD", "note": "Hinterland day trips, small owner-run businesses" }
+    ],
+    "WA": [
+      { "area": "Margaret River WA", "note": "Wine and food touring, dense with independents" },
+      { "area": "Dunsborough WA", "note": "Same region, smaller and less served" }
+    ],
+    "SA": [
+      { "area": "Hahndorf SA", "note": "Adelaide Hills day trips, very high foot traffic" },
+      { "area": "Victor Harbor SA", "note": "Fleurieu holiday trade" }
+    ],
+    "TAS": [
+      { "area": "Strahan TAS", "note": "Remote, visitor-dependent, often poorly served digitally" },
+      { "area": "Bicheno TAS", "note": "East coast touring route" }
+    ]
+  },
+
+  "default_survey": [
+    "Katoomba NSW",
+    "Kiama NSW",
+    "Huskisson NSW",
+    "Nelson Bay NSW",
+    "Bowral NSW"
+  ]
+}

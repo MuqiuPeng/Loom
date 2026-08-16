@@ -1,0 +1,96 @@
+{#
+  A photograph, untouched, with a sparse abstract panel joined beneath it.
+
+  The arrangement comes from the photo-abstract-editorial Codex skill
+  (github.com/ZzzLc0405/photo-abstract-editorial). That skill is offered for
+  personal and non-commercial use only, so none of its text is reproduced
+  here — what is adapted is the composition: the photo kept whole rather than
+  filtered, a quiet panel of marks below it, one restrained serif title, and
+  ivory everywhere else.
+
+  One thing does not survive the translation, and it matters when describing
+  the page to an owner. In the original the marks are read out of the
+  photograph. A template renders before anyone has looked at the image, so
+  these marks are built from the palette instead. They are a composition, not
+  a reading of their photo — do not claim otherwise in the pitch.
+
+  The photo is contained rather than cropped, so a wide image letterboxes into
+  the ivory. That is the intended behaviour: this direction preserves the
+  frame it was given.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+{# Oyster, not ivory. The original skill calls for ivory and I set #f4f0e8,
+   which lands three points from #F4F1EA — the exact warm cream the
+   frontend-design skill names as the AI default. Shifting the ground neutral
+   keeps the letterboxing reading as a gallery mat rather than as the tint
+   every generated page arrives in. #}
+body{background:#e7e6e1}
+.hero{margin:0}
+{# 62vh, not more: past that the business name falls below the fold on a
+   laptop, and a demo whose first screen omits the name is a bad demo however
+   good the photograph is. #}
+.plate{width:100%;max-height:62vh;object-fit:contain;background:#dcdbd5}
+.panel{padding:3.5rem 1.5rem}
+.panel-inner{max-width:46rem;margin:0 auto}
+{# Capped, so the marks keep the same weight on a wide screen as on a phone.
+   Left to span 46rem they stretch into hairlines and read as a rendering
+   fault rather than a composition. #}
+.marks{display:block;width:100%;max-width:30rem;height:auto;margin-bottom:2.75rem}
+.eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;
+  opacity:.45;margin:0 0 1rem}
+h1{font-family:'Iowan Old Style',Palatino,'Palatino Linotype',Georgia,serif;
+  font-weight:400;font-size:clamp(2.4rem,7.5vw,4.2rem);line-height:1.05;
+  letter-spacing:-.015em;margin:0}
+.lede{max-width:32rem;margin-top:1.6rem;font-size:1rem;opacity:.72}
+.credit{padding:0 1.5rem;text-align:right}
+h2{font-family:'Iowan Old Style',Palatino,Georgia,serif;font-weight:400;
+  font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  opacity:.5;margin:0 0 1.6rem}
+h3{font-family:'Iowan Old Style',Palatino,Georgia,serif;font-weight:400;
+  font-size:1.2rem;margin:2rem 0 .6rem}
+.band{padding:4.5rem 0;border-top:1px solid rgba(60,55,45,.14)}
+.item{border:0}
+.item .dots{opacity:.22}
+.facts-grid{display:grid;gap:3rem}
+@media(min-width:820px){.facts-grid{grid-template-columns:1fr 1fr}}
+.gallery{grid-template-columns:1fr;gap:2.5rem}
+@media(min-width:820px){.gallery{grid-template-columns:1fr 1fr}}
+.closing{background:rgba(60,55,45,.05)}
+{% endblock %}
+
+{% block hero %}
+<header class="hero">
+  {% if images %}<img class="plate" src="{{ images[0] }}" alt="">{% endif %}
+  <div class="panel">
+    <div class="panel-inner">
+      {#
+        Five marks, no more: an axis, a mass, a rhythm, a subject, an
+        interval. Adding a sixth is what turns this from a panel into
+        decoration.
+      #}
+      <svg class="marks" viewBox="0 0 600 180" role="presentation" aria-hidden="true">
+        <rect x="0" y="96" width="228" height="52" fill="{{ palette.accent }}" opacity=".16"/>
+        <line x1="0" y1="96" x2="600" y2="96" stroke="{{ palette.ink }}"
+          stroke-width="1" opacity=".38"/>
+        <circle cx="438" cy="62" r="46" fill="none" stroke="{{ palette.ink }}"
+          stroke-width="1" opacity=".45"/>
+        <line x1="292" y1="30" x2="292" y2="96" stroke="{{ palette.ink }}"
+          stroke-width="1" opacity=".28"/>
+        <line x1="324" y1="52" x2="324" y2="96" stroke="{{ palette.ink }}"
+          stroke-width="1" opacity=".28"/>
+        <line x1="340" y1="74" x2="340" y2="96" stroke="{{ palette.ink }}"
+          stroke-width="1" opacity=".28"/>
+        <line x1="0" y1="148" x2="228" y2="148" stroke="{{ palette.accent }}"
+          stroke-width="2"/>
+      </svg>
+      {% if address or phone %}
+      <p class="eyebrow">{{ address or phone }}</p>
+      {% endif %}
+      <h1>{{ business }}</h1>
+      {% if about %}<p class="lede">{{ about }}</p>{% endif %}
+    </div>
+  </div>
+  {% if stock_used %}<p class="credit">{{ stock_note }}</p>{% endif %}
+</header>
+{% endblock %}

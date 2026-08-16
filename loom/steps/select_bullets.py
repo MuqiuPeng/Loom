@@ -211,8 +211,9 @@ class SelectBulletsStep(Step):
 
         # ── Step 4: Build integration pool ───────────────────────
 
+        language = context.data.get("language", "en")
         integration_pool = await self._build_integration_pool(
-            context.user_id, exp_bullets,
+            context.user_id, exp_bullets, language,
         )
 
         # ── Step 5: Claude scores projects ───────────────────────
@@ -364,6 +365,7 @@ class SelectBulletsStep(Step):
                 "type": b.type.value if hasattr(b.type, "value") else str(b.type),
                 "raw_text": b.raw_text,
                 "content_en": b.content_en,
+                "content_zh": b.content_zh,
                 "star_data": b.star_data,
                 "tech_stack": b.tech_stack,
                 "score": score,
@@ -416,8 +418,9 @@ class SelectBulletsStep(Step):
         self,
         user_id: str,
         exp_bullets: list[tuple[Experience, list[Bullet]]],
+        language: str = "en",
     ) -> dict:
-        profile_data = await self.profile_repo.get_full_profile(user_id)
+        profile_data = await self.profile_repo.get_full_profile(user_id, lang=language)
 
         def _serialize_proj(proj: dict) -> dict:
             return {
@@ -426,7 +429,8 @@ class SelectBulletsStep(Step):
                 "tech_stack": proj.get("tech_stack", []),
                 "bullets": [
                     {
-                        "content_en": b.get("content") or b.get("content_en") or "",
+                        "content": b.get("content") or "",
+                        "content_en": b.get("content_en") or b.get("content") or "",
                         "type": b.get("type"),
                         "star_data": b.get("star_data", {}),
                         "tech_stack": b.get("tech_stack", []),
@@ -458,14 +462,21 @@ class SelectBulletsStep(Step):
         ]
 
         # All experiences with full bullet data
+        def _pick(en: str | None, zh: str | None) -> str:
+            if language == "zh":
+                return zh or en or ""
+            return en or ""
+
         all_experiences = []
         for exp, bullets in exp_bullets:
             all_experiences.append({
                 "experience_id": str(exp.id),
-                "company": exp.company_en or "",
-                "title": exp.title_en or "",
+                "company": _pick(exp.company_en, exp.company_zh),
+                "company_en": exp.company_en or "",
+                "title": _pick(exp.title_en, exp.title_zh),
                 "all_bullets": [
                     {
+                        "content": _pick(b.content_en, b.content_zh),
                         "content_en": b.content_en or "",
                         "type": b.type.value if hasattr(b.type, "value") else str(b.type),
                         "star_data": b.star_data or {},

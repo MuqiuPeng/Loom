@@ -1,0 +1,28 @@
+{#
+  Serif display, type-led hero, asymmetric split when a photo exists.
+
+  The signature is the overhang. A masthead runs wider than the columns
+  beneath it, so the name here pushes out of the content measure into the
+  right margin instead of sitting obediently inside it. That is the one
+  memorable move; everything else stays disciplined.
+
+  It overhangs, it does not crop. A business owner reading their own name cut
+  off by the page edge sees a bug, not a decision — so the overhang is capped
+  at the gutter and the page is held against sideways scroll.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{overflow-x:hidden}
+.hero{padding:4.5rem 1.5rem 3rem;display:grid;gap:2.5rem;align-items:start}
+@media(min-width:820px){.hero{grid-template-columns:5fr 7fr}}
+h1{font-family:Georgia,'Iowan Old Style','Times New Roman',serif;
+  font-size:clamp(3rem,11vw,7rem);letter-spacing:-.03em;line-height:.95;margin:0;
+  margin-right:calc(-1 * clamp(0rem,5vw,7rem))}
+.lede{max-width:34rem;margin-top:1.4rem;font-size:1.05rem;opacity:.8}
+h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.18em;
+  padding-bottom:.6rem;border-bottom:1px solid rgba(127,127,127,.35);margin:0 0 1.4rem}
+h3{font-family:Georgia,serif;font-size:1.35rem;margin:2rem 0 .8rem}
+.item{border-bottom:1px dotted rgba(127,127,127,.3)}
+.facts-grid{display:grid;gap:2.5rem}
+@media(min-width:820px){.facts-grid{grid-template-columns:5fr 7fr}}
+{% endblock %}

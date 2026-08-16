@@ -21,9 +21,10 @@ def _parse_date_str(s: str | None) -> date | None:
     except (ValueError, IndexError):
         return None
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from loom.current_user import get_current_user
 from loom.storage.bullet import Bullet, BulletType, Confidence
 from loom.storage.database import get_session
 from loom.storage.models import (
@@ -274,6 +275,18 @@ _PROJECT_COLUMNS = {
 }
 
 
+
+def _owner_clause(model: Any, user_id: str | None):
+    """WHERE fragment restricting a row to the user who owns it.
+
+    `None` means no owner check, and that is the path the pipeline steps, the
+    CLI and the cron jobs take — they have already established whose data they
+    are working on. Request handlers always pass a real user_id, so one account
+    cannot reach another's row by guessing its UUID.
+    """
+    return true() if user_id is None else model.user_id == user_id
+
+
 class PostgresDataStorage(DataStorage):
     """PostgreSQL implementation of DataStorage interface."""
 
@@ -361,25 +374,25 @@ class PostgresDataStorage(DataStorage):
         )
         return [_skill_from_model(m) for m in result.scalars().all()]
 
-    async def update_skill(self, skill_id: UUID, data: dict[str, Any]) -> Skill | None:
+    async def update_skill(self, skill_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Skill | None:
         session = await self._get_session()
         safe = {k: v for k, v in data.items() if k in _SKILL_COLUMNS}
         if not safe:
             return None
         await session.execute(
-            update(SkillModel).where(SkillModel.id == skill_id).values(**safe)
+            update(SkillModel).where(SkillModel.id == skill_id, _owner_clause(SkillModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(SkillModel).where(SkillModel.id == skill_id)
+            select(SkillModel).where(SkillModel.id == skill_id, _owner_clause(SkillModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _skill_from_model(model) if model else None
 
-    async def delete_skill(self, skill_id: UUID) -> bool:
+    async def delete_skill(self, skill_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(SkillModel).where(SkillModel.id == skill_id)
+            select(SkillModel).where(SkillModel.id == skill_id, _owner_clause(SkillModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -413,19 +426,24 @@ class PostgresDataStorage(DataStorage):
     async def get_experiences(self, profile_id: UUID) -> list[Experience]:
         session = await self._get_session()
         result = await session.execute(
-            select(ExperienceModel).where(ExperienceModel.profile_id == profile_id)
+            select(ExperienceModel)
+            .where(ExperienceModel.profile_id == profile_id)
+            .order_by(
+                ExperienceModel.end_date.is_(None).desc(),
+                ExperienceModel.start_date.desc(),
+            )
         )
         return [_experience_from_model(m) for m in result.scalars().all()]
 
-    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
+    async def get_experience_by_id(self, exp_id: UUID, user_id: str | None = None) -> Experience | None:
         session = await self._get_session()
         result = await session.execute(
-            select(ExperienceModel).where(ExperienceModel.id == exp_id)
+            select(ExperienceModel).where(ExperienceModel.id == exp_id, _owner_clause(ExperienceModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _experience_from_model(model) if model else None
 
-    async def update_experience(self, exp_id: UUID, data: dict[str, Any]) -> Experience | None:
+    async def update_experience(self, exp_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Experience | None:
         session = await self._get_session()
         safe = {k: v for k, v in data.items() if k in _EXPERIENCE_COLUMNS}
         if not safe:
@@ -434,19 +452,19 @@ class PostgresDataStorage(DataStorage):
             if date_key in safe and isinstance(safe[date_key], str):
                 safe[date_key] = _parse_date_str(safe[date_key])
         await session.execute(
-            update(ExperienceModel).where(ExperienceModel.id == exp_id).values(**safe)
+            update(ExperienceModel).where(ExperienceModel.id == exp_id, _owner_clause(ExperienceModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(ExperienceModel).where(ExperienceModel.id == exp_id)
+            select(ExperienceModel).where(ExperienceModel.id == exp_id, _owner_clause(ExperienceModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _experience_from_model(model) if model else None
 
-    async def delete_experience(self, exp_id: UUID) -> bool:
+    async def delete_experience(self, exp_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(ExperienceModel).where(ExperienceModel.id == exp_id)
+            select(ExperienceModel).where(ExperienceModel.id == exp_id, _owner_clause(ExperienceModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -486,25 +504,25 @@ class PostgresDataStorage(DataStorage):
         )
         return [_bullet_from_model(m) for m in result.scalars().all()]
 
-    async def update_bullet(self, bullet_id: UUID, data: dict[str, Any]) -> Bullet | None:
+    async def update_bullet(self, bullet_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Bullet | None:
         session = await self._get_session()
         safe = {k: v for k, v in data.items() if k in _BULLET_COLUMNS}
         if not safe:
             return None
         await session.execute(
-            update(BulletModel).where(BulletModel.id == bullet_id).values(**safe)
+            update(BulletModel).where(BulletModel.id == bullet_id, _owner_clause(BulletModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(BulletModel).where(BulletModel.id == bullet_id)
+            select(BulletModel).where(BulletModel.id == bullet_id, _owner_clause(BulletModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _bullet_from_model(model) if model else None
 
-    async def delete_bullet(self, bullet_id: UUID) -> bool:
+    async def delete_bullet(self, bullet_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(BulletModel).where(BulletModel.id == bullet_id)
+            select(BulletModel).where(BulletModel.id == bullet_id, _owner_clause(BulletModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -549,10 +567,10 @@ class PostgresDataStorage(DataStorage):
         )
         return [_project_from_model(m) for m in result.scalars().all()]
 
-    async def delete_project(self, project_id: UUID) -> bool:
+    async def delete_project(self, project_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(ProjectModel).where(ProjectModel.id == project_id)
+            select(ProjectModel).where(ProjectModel.id == project_id, _owner_clause(ProjectModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -561,7 +579,7 @@ class PostgresDataStorage(DataStorage):
         await session.flush()
         return True
 
-    async def update_project(self, project_id: UUID, data: dict[str, Any]) -> Project | None:
+    async def update_project(self, project_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Project | None:
         session = await self._get_session()
         safe = {k: v for k, v in data.items() if k in _PROJECT_COLUMNS}
         if not safe:
@@ -571,11 +589,11 @@ class PostgresDataStorage(DataStorage):
             if date_key in safe and isinstance(safe[date_key], str):
                 safe[date_key] = _parse_date_str(safe[date_key])
         await session.execute(
-            update(ProjectModel).where(ProjectModel.id == project_id).values(**safe)
+            update(ProjectModel).where(ProjectModel.id == project_id, _owner_clause(ProjectModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(ProjectModel).where(ProjectModel.id == project_id)
+            select(ProjectModel).where(ProjectModel.id == project_id, _owner_clause(ProjectModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _project_from_model(model) if model else None
@@ -608,7 +626,7 @@ class PostgresDataStorage(DataStorage):
         )
         return [_education_from_model(m) for m in result.scalars().all()]
 
-    async def update_education(self, edu_id: UUID, data: dict[str, Any]) -> Education | None:
+    async def update_education(self, edu_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Education | None:
         session = await self._get_session()
         safe = {k: v for k, v in data.items() if k in _EDUCATION_COLUMNS}
         if not safe:
@@ -617,19 +635,19 @@ class PostgresDataStorage(DataStorage):
             if date_key in safe and isinstance(safe[date_key], str):
                 safe[date_key] = _parse_date_str(safe[date_key])
         await session.execute(
-            update(EducationModel).where(EducationModel.id == edu_id).values(**safe)
+            update(EducationModel).where(EducationModel.id == edu_id, _owner_clause(EducationModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(EducationModel).where(EducationModel.id == edu_id)
+            select(EducationModel).where(EducationModel.id == edu_id, _owner_clause(EducationModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _education_from_model(model) if model else None
 
-    async def delete_education(self, edu_id: UUID) -> bool:
+    async def delete_education(self, edu_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(EducationModel).where(EducationModel.id == edu_id)
+            select(EducationModel).where(EducationModel.id == edu_id, _owner_clause(EducationModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -657,10 +675,10 @@ class PostgresDataStorage(DataStorage):
         session.add(model)
         await session.flush()
 
-    async def get_jd_record(self, jd_id: UUID) -> JDRecord | None:
+    async def get_jd_record(self, jd_id: UUID, user_id: str | None = None) -> JDRecord | None:
         session = await self._get_session()
         result = await session.execute(
-            select(JDRecordModel).where(JDRecordModel.id == jd_id)
+            select(JDRecordModel).where(JDRecordModel.id == jd_id, _owner_clause(JDRecordModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _jd_record_from_model(model) if model else None
@@ -674,10 +692,29 @@ class PostgresDataStorage(DataStorage):
         )
         return [_jd_record_from_model(m) for m in result.scalars().all()]
 
-    async def delete_jd_record(self, jd_id: UUID) -> bool:
+    async def update_jd_record(self, jd_id: UUID, data: dict[str, Any], user_id: str | None = None) -> JDRecord | None:
+        _JD_COLUMNS = {
+            "company", "title", "raw_text", "required_skills",
+            "preferred_skills", "key_requirements", "match_score",
+        }
+        session = await self._get_session()
+        safe = {k: v for k, v in data.items() if k in _JD_COLUMNS}
+        if not safe:
+            return None
+        await session.execute(
+            update(JDRecordModel).where(JDRecordModel.id == jd_id, _owner_clause(JDRecordModel, user_id)).values(**safe)
+        )
+        await session.flush()
+        result = await session.execute(
+            select(JDRecordModel).where(JDRecordModel.id == jd_id, _owner_clause(JDRecordModel, user_id))
+        )
+        model = result.scalar_one_or_none()
+        return _jd_record_from_model(model) if model else None
+
+    async def delete_jd_record(self, jd_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(JDRecordModel).where(JDRecordModel.id == jd_id)
+            select(JDRecordModel).where(JDRecordModel.id == jd_id, _owner_clause(JDRecordModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -686,10 +723,10 @@ class PostgresDataStorage(DataStorage):
         await session.flush()
         return True
 
-    async def update_jd_match_score(self, jd_id: UUID, score: float) -> None:
+    async def update_jd_match_score(self, jd_id: UUID, score: float, user_id: str | None = None) -> None:
         session = await self._get_session()
         result = await session.execute(
-            select(JDRecordModel).where(JDRecordModel.id == jd_id)
+            select(JDRecordModel).where(JDRecordModel.id == jd_id, _owner_clause(JDRecordModel, user_id))
         )
         model = result.scalar_one_or_none()
         if model:
@@ -717,10 +754,10 @@ class PostgresDataStorage(DataStorage):
         session.add(model)
         await session.flush()
 
-    async def get_resume_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
+    async def get_resume_artifact(self, artifact_id: UUID, user_id: str | None = None) -> ResumeArtifact | None:
         session = await self._get_session()
         result = await session.execute(
-            select(ResumeArtifactModel).where(ResumeArtifactModel.id == artifact_id)
+            select(ResumeArtifactModel).where(ResumeArtifactModel.id == artifact_id, _owner_clause(ResumeArtifactModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _resume_artifact_from_model(model) if model else None
@@ -734,10 +771,10 @@ class PostgresDataStorage(DataStorage):
         )
         return [_resume_artifact_from_model(m) for m in result.scalars().all()]
 
-    async def delete_resume_artifact(self, artifact_id: UUID) -> bool:
+    async def delete_resume_artifact(self, artifact_id: UUID, user_id: str | None = None) -> bool:
         session = await self._get_session()
         result = await session.execute(
-            select(ResumeArtifactModel).where(ResumeArtifactModel.id == artifact_id)
+            select(ResumeArtifactModel).where(ResumeArtifactModel.id == artifact_id, _owner_clause(ResumeArtifactModel, user_id))
         )
         model = result.scalar_one_or_none()
         if not model:
@@ -746,11 +783,11 @@ class PostgresDataStorage(DataStorage):
         await session.flush()
         return True
 
-    async def delete_resume_artifacts_by_jd(self, jd_record_id: UUID) -> int:
+    async def delete_resume_artifacts_by_jd(self, jd_record_id: UUID, user_id: str | None = None) -> int:
         session = await self._get_session()
         result = await session.execute(
             select(ResumeArtifactModel)
-            .where(ResumeArtifactModel.jd_record_id == jd_record_id)
+            .where(ResumeArtifactModel.jd_record_id == jd_record_id, _owner_clause(ResumeArtifactModel, user_id))
         )
         models = result.scalars().all()
         for m in models:
@@ -759,7 +796,7 @@ class PostgresDataStorage(DataStorage):
         return len(models)
 
     # Resume Artifact update
-    async def update_resume_artifact(self, artifact_id: UUID, data: dict[str, Any]) -> bool:
+    async def update_resume_artifact(self, artifact_id: UUID, data: dict[str, Any], user_id: str | None = None) -> bool:
         session = await self._get_session()
         safe_cols = {"pdf_path", "content_md", "content_tex", "language", "starred", "status", "generation_progress"}
         safe = {k: v for k, v in data.items() if k in safe_cols}
@@ -767,7 +804,7 @@ class PostgresDataStorage(DataStorage):
             return False
         await session.execute(
             update(ResumeArtifactModel)
-            .where(ResumeArtifactModel.id == artifact_id)
+            .where(ResumeArtifactModel.id == artifact_id, _owner_clause(ResumeArtifactModel, user_id))
             .values(**safe)
         )
         await session.flush()
@@ -790,15 +827,15 @@ class PostgresDataStorage(DataStorage):
         session.add(model)
         await session.flush()
 
-    async def get_task(self, task_id: UUID) -> Task | None:
+    async def get_task(self, task_id: UUID, user_id: str | None = None) -> Task | None:
         session = await self._get_session()
         result = await session.execute(
-            select(TaskModel).where(TaskModel.id == task_id)
+            select(TaskModel).where(TaskModel.id == task_id, _owner_clause(TaskModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _task_from_model(model) if model else None
 
-    async def update_task(self, task_id: UUID, data: dict[str, Any]) -> Task | None:
+    async def update_task(self, task_id: UUID, data: dict[str, Any], user_id: str | None = None) -> Task | None:
         session = await self._get_session()
         safe_cols = {"status", "output_data", "error"}
         safe = {k: v for k, v in data.items() if k in safe_cols}
@@ -806,11 +843,11 @@ class PostgresDataStorage(DataStorage):
             return None
         safe["updated_at"] = datetime.utcnow()
         await session.execute(
-            update(TaskModel).where(TaskModel.id == task_id).values(**safe)
+            update(TaskModel).where(TaskModel.id == task_id, _owner_clause(TaskModel, user_id)).values(**safe)
         )
         await session.flush()
         result = await session.execute(
-            select(TaskModel).where(TaskModel.id == task_id)
+            select(TaskModel).where(TaskModel.id == task_id, _owner_clause(TaskModel, user_id))
         )
         model = result.scalar_one_or_none()
         return _task_from_model(model) if model else None
@@ -871,6 +908,252 @@ class PostgresDataStorage(DataStorage):
         return [_token_usage_from_model(m) for m in result.scalars().all()]
 
     # Log Entries
+    # ── Scout leads ──────────────────────────────────────────────────
+
+    async def upsert_scout_leads(
+        self, candidates: list[dict], user_id: str | None = None
+    ) -> dict[str, int]:
+        """Save leads, one row per place_id.
+
+        Re-scouting an area refreshes the audit and contact details but never
+        clobbers `status` or `notes` — those are the user's work, not the
+        crawler's. Google-derived fields are stamped with an expiry.
+        """
+        from datetime import timedelta
+
+        from loom.storage.models import GOOGLE_CACHE_DAYS, ScoutLeadModel
+
+        user_id = user_id or get_current_user()
+        session = await self._get_session()
+        now = datetime.utcnow()
+        expires = now + timedelta(days=GOOGLE_CACHE_DAYS)
+        created = updated = 0
+
+        for c in candidates:
+            place_id = c.get("place_id")
+            if not place_id:
+                continue
+            # Scoped to the user: two accounts scouting the same suburb each
+            # keep their own row, with their own status and notes, rather than
+            # the second one inheriting the first one's outreach history.
+            result = await session.execute(
+                select(ScoutLeadModel).where(
+                    ScoutLeadModel.place_id == place_id,
+                    ScoutLeadModel.user_id == user_id,
+                )
+            )
+            row = result.scalar_one_or_none()
+            audit = c.get("audit") or None
+            fields = {
+                "site_url": c.get("site_url"),
+                "site_title": c.get("site_title"),
+                "careers_url": c.get("careers_url"),
+                "emails": c.get("emails") or [],
+                "email_sources": c.get("email_sources") or {},
+                "audit": audit,
+                "score": (audit or {}).get("score", 0),
+                "google_name": c.get("google_name"),
+                "google_address": c.get("google_address"),
+                "google_phone": c.get("google_phone"),
+                "google_extra": {
+                    k: c[k] for k in (
+                        "google_rating", "google_rating_count", "google_price_level",
+                        "google_hours", "google_maps_uri", "google_types",
+                        "primary_type",
+                    ) if c.get(k) not in (None, [], "")
+                } or None,
+                "google_expires_at": expires,
+                "checked_at": now,
+            }
+            if row is None:
+                session.add(
+                    ScoutLeadModel(
+                        place_id=place_id, user_id=user_id, created_at=now,
+                        updated_at=now, **fields,
+                    )
+                )
+                created += 1
+            else:
+                for key, value in fields.items():
+                    setattr(row, key, value)
+                updated += 1
+
+        await session.flush()
+        return {"created": created, "updated": updated}
+
+    async def list_scout_leads(
+        self, status: str | None = None, user_id: str | None = None, limit: int = 200
+    ) -> list[dict]:
+        from loom.storage.models import ScoutLeadModel
+
+        user_id = user_id or get_current_user()
+        session = await self._get_session()
+        query = select(ScoutLeadModel).where(ScoutLeadModel.user_id == user_id)
+        if status and status != "all":
+            query = query.where(ScoutLeadModel.status == status)
+        query = query.order_by(
+            ScoutLeadModel.score.desc(), ScoutLeadModel.created_at.desc()
+        ).limit(limit)
+        result = await session.execute(query)
+        rows = list(result.scalars().all())
+
+        now = datetime.utcnow()
+        expired = [r for r in rows if r.google_expires_at and r.google_expires_at < now]
+        for row in expired:
+            # Past the caching window — drop Google's copy rather than serve it.
+            row.google_name = row.google_address = row.google_phone = None
+            row.google_extra = None
+            row.google_expires_at = None
+        if expired:
+            await session.flush()
+
+        return [
+            {
+                "id": str(r.id),
+                "place_id": r.place_id,
+                "status": r.status,
+                "notes": r.notes,
+                "site_url": r.site_url,
+                "site_title": r.site_title,
+                "careers_url": r.careers_url,
+                "emails": r.emails or [],
+                "audit": r.audit,
+                "score": r.score,
+                "google_name": r.google_name,
+                "google_address": r.google_address,
+                "google_phone": r.google_phone,
+                "google_extra": r.google_extra,
+                "harvest": r.harvest,
+                "harvested_at": r.harvested_at.isoformat() if r.harvested_at else None,
+                "demo_slug": r.demo_slug,
+                "demo_url": r.demo_url,
+                "has_demo": bool(r.demo_html),
+                "demo_active": r.demo_active,
+                "demo_public": r.demo_public,
+                "demo_plan": r.demo_plan,
+                "planned_at": r.planned_at.isoformat() if r.planned_at else None,
+                "demo_options": [
+                    {
+                        "direction": name,
+                        "rounds": v.get("rounds"),
+                        "engine": v.get("engine", "model"),
+                        "remaining": v.get("remaining") or [],
+                        "has_thumb": bool(v.get("thumb")),
+                    }
+                    for name, v in (r.demo_variants or {}).items()
+                ],
+                "demo_built_at": r.demo_built_at.isoformat() if r.demo_built_at else None,
+                "draft_subject": r.draft_subject,
+                "draft_body": r.draft_body,
+                "contacted_at": r.contacted_at.isoformat() if r.contacted_at else None,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "checked_at": r.checked_at.isoformat() if r.checked_at else None,
+            }
+            for r in rows
+        ]
+
+    async def get_demo_by_slug(self, slug: str) -> str | None:
+        """The demo page for a slug, or None. Used by the public route."""
+        from loom.storage.models import ScoutLeadModel
+
+        session = await self._get_session()
+        result = await session.execute(
+            select(ScoutLeadModel.demo_html).where(ScoutLeadModel.demo_slug == slug)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_scout_lead(self, lead_id: str, user_id: str | None = None) -> dict | None:
+        """One lead, including the heavy demo payloads.
+
+        Not a filter over list_scout_leads: that projection deliberately drops
+        demo_variants (three pages plus three screenshots) so the list stays
+        small, and a single-lead fetch is exactly where those are needed.
+        """
+        from loom.storage.models import ScoutLeadModel
+
+        session = await self._get_session()
+        result = await session.execute(
+            select(ScoutLeadModel).where(
+                ScoutLeadModel.id == lead_id, _owner_clause(ScoutLeadModel, user_id)
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return {
+            "id": str(row.id),
+            "place_id": row.place_id,
+            "status": row.status,
+            "notes": row.notes,
+            "site_url": row.site_url,
+            "site_title": row.site_title,
+            "careers_url": row.careers_url,
+            "emails": row.emails or [],
+            "email_sources": row.email_sources or {},
+            "audit": row.audit,
+            "score": row.score,
+            "google_name": row.google_name,
+            "google_address": row.google_address,
+            "google_phone": row.google_phone,
+            "google_extra": row.google_extra,
+            "harvest": row.harvest,
+            "demo_slug": row.demo_slug,
+            "demo_url": row.demo_url,
+            "demo_html": row.demo_html,
+            "demo_variants": row.demo_variants,
+            "demo_plan": row.demo_plan,
+            "demo_active": row.demo_active,
+            "demo_public": row.demo_public,
+            "draft_subject": row.draft_subject,
+            "draft_body": row.draft_body,
+        }
+
+    # Fields a pipeline stage is allowed to write back.
+    _LEAD_WRITABLE = (
+        "status", "notes", "emails", "harvest", "harvested_at", "demo_slug", "demo_url", "demo_html", "demo_variants", "demo_active",
+        "demo_plan", "planned_at", "demo_public",
+        "demo_built_at", "draft_subject", "draft_body", "drafted_at", "contacted_at",
+        "email_sources",
+    )
+
+    async def update_scout_lead(
+        self, lead_id: str, data: dict, user_id: str | None = None
+    ) -> bool:
+        from loom.storage.models import ScoutLeadModel
+
+        session = await self._get_session()
+        result = await session.execute(
+            select(ScoutLeadModel).where(
+                ScoutLeadModel.id == lead_id, _owner_clause(ScoutLeadModel, user_id)
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return False
+        for key in self._LEAD_WRITABLE:
+            if key in data:
+                setattr(row, key, data[key])
+        await session.flush()
+        return True
+
+    async def delete_scout_lead(
+        self, lead_id: str, user_id: str | None = None
+    ) -> bool:
+        from loom.storage.models import ScoutLeadModel
+
+        session = await self._get_session()
+        result = await session.execute(
+            select(ScoutLeadModel).where(
+                ScoutLeadModel.id == lead_id, _owner_clause(ScoutLeadModel, user_id)
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return False
+        await session.delete(row)
+        await session.flush()
+        return True
+
     async def save_log_entry(self, entry: Any) -> None:
         session = await self._get_session()
         model = LogEntryModel(
@@ -878,6 +1161,7 @@ class PostgresDataStorage(DataStorage):
             user_id=getattr(entry, "user_id", "local"),
             created_at=entry.created_at,
             level=entry.level,
+            service=getattr(entry, "service", "resume_tailor"),
             category=entry.category,
             action=entry.action,
             message=entry.message,
@@ -895,12 +1179,18 @@ class PostgresDataStorage(DataStorage):
         category: str | None = None,
         level: str | None = None,
         search: str | None = None,
+        service: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        user_id: str | None = None,
     ) -> tuple[list[dict], int]:
         session = await self._get_session()
-        query = select(LogEntryModel)
-        count_query = select(func.count(LogEntryModel.id))
+        owner = _owner_clause(LogEntryModel, user_id)
+        query = select(LogEntryModel).where(owner)
+        count_query = select(func.count(LogEntryModel.id)).where(owner)
+        if service:
+            query = query.where(LogEntryModel.service == service)
+            count_query = count_query.where(LogEntryModel.service == service)
         if category:
             query = query.where(LogEntryModel.category == category)
             count_query = count_query.where(LogEntryModel.category == category)
@@ -922,6 +1212,7 @@ class PostgresDataStorage(DataStorage):
             {
                 "id": str(m.id),
                 "level": m.level,
+                "service": getattr(m, "service", "resume_tailor"),
                 "category": m.category,
                 "action": m.action,
                 "message": m.message,
@@ -936,49 +1227,83 @@ class PostgresDataStorage(DataStorage):
         ]
         return entries, total
 
-    async def delete_logs(self, older_than_days: int = 0) -> int:
+    async def delete_logs(self, older_than_days: int = 0, user_id: str | None = None) -> int:
         session = await self._get_session()
+        owner = _owner_clause(LogEntryModel, user_id)
         if older_than_days == 0:
-            result = await session.execute(delete(LogEntryModel))
+            result = await session.execute(delete(LogEntryModel).where(owner))
         else:
             cutoff = datetime.utcnow() - __import__("datetime").timedelta(days=older_than_days)
             result = await session.execute(
-                delete(LogEntryModel).where(LogEntryModel.created_at < cutoff)
+                delete(LogEntryModel).where(LogEntryModel.created_at < cutoff, owner)
             )
         await session.flush()
         return result.rowcount or 0
 
-    async def get_log_stats(self) -> dict[str, Any]:
+    async def get_log_stats(self, user_id: str | None = None) -> dict[str, Any]:
         session = await self._get_session()
-        total_r = await session.execute(select(func.count(LogEntryModel.id)))
+        owner = _owner_clause(LogEntryModel, user_id)
+        spender = _owner_clause(TokenUsageModel, user_id)
+        total_r = await session.execute(
+            select(func.count(LogEntryModel.id)).where(owner)
+        )
         total = total_r.scalar() or 0
 
         cat_r = await session.execute(
             select(LogEntryModel.category, func.count(LogEntryModel.id))
+            .where(owner)
             .group_by(LogEntryModel.category)
         )
         by_category = {row[0]: row[1] for row in cat_r.all()}
 
         level_r = await session.execute(
             select(LogEntryModel.level, func.count(LogEntryModel.id))
+            .where(owner)
             .group_by(LogEntryModel.level)
         )
         by_level = {row[0]: row[1] for row in level_r.all()}
 
         oldest_r = await session.execute(
-            select(func.min(LogEntryModel.created_at))
+            select(func.min(LogEntryModel.created_at)).where(owner)
         )
         newest_r = await session.execute(
-            select(func.max(LogEntryModel.created_at))
+            select(func.max(LogEntryModel.created_at)).where(owner)
         )
         oldest = oldest_r.scalar()
         newest = newest_r.scalar()
+
+        # Was hardcoded to 0 — never a regression, just never implemented, so
+        # the dashboard has always reported no spend at all.
+        usage_r = await session.execute(
+            select(
+                func.coalesce(func.sum(TokenUsageModel.input_tokens), 0),
+                func.coalesce(func.sum(TokenUsageModel.output_tokens), 0),
+                func.count(TokenUsageModel.id),
+            ).where(spender)
+        )
+        input_tokens, output_tokens, calls = usage_r.first() or (0, 0, 0)
+
+        by_caller_r = await session.execute(
+            select(
+                TokenUsageModel.step_name,
+                func.count(TokenUsageModel.id),
+                func.sum(TokenUsageModel.input_tokens + TokenUsageModel.output_tokens),
+            ).where(spender).group_by(TokenUsageModel.step_name)
+        )
+        by_caller = {
+            (row[0] or "unattributed"): {"calls": row[1], "tokens": row[2] or 0}
+            for row in by_caller_r.all()
+        }
 
         return {
             "total_entries": total,
             "by_category": by_category,
             "by_level": by_level,
-            "total_tokens_used": 0,
+            "total_tokens_used": int(input_tokens) + int(output_tokens),
+            "input_tokens": int(input_tokens),
+            "output_tokens": int(output_tokens),
+            "llm_calls": int(calls),
+            "tokens_by_caller": by_caller,
             "oldest_entry": oldest.isoformat() if oldest else None,
             "newest_entry": newest.isoformat() if newest else None,
         }
@@ -1016,150 +1341,171 @@ class AutocommitPostgresStorage(DataStorage):
             return await method(*args, **kwargs)
 
     # Profile
-    async def save_profile(self, profile):
-        return await self._run("save_profile", profile)
+    async def save_profile(self, profile, **kwargs):
+        return await self._run("save_profile", profile, **kwargs)
 
-    async def get_profile(self, user_id):
-        return await self._run("get_profile", user_id)
+    async def get_profile(self, user_id, **kwargs):
+        return await self._run("get_profile", user_id, **kwargs)
 
-    async def update_profile(self, profile_id, data):
-        return await self._run("update_profile", profile_id, data)
+    async def update_profile(self, profile_id, data, **kwargs):
+        return await self._run("update_profile", profile_id, data, **kwargs)
 
     # Skills
-    async def save_skill(self, skill):
-        return await self._run("save_skill", skill)
+    async def save_skill(self, skill, **kwargs):
+        return await self._run("save_skill", skill, **kwargs)
 
-    async def get_skills(self, profile_id):
-        return await self._run("get_skills", profile_id)
+    async def get_skills(self, profile_id, **kwargs):
+        return await self._run("get_skills", profile_id, **kwargs)
 
-    async def update_skill(self, skill_id, data):
-        return await self._run("update_skill", skill_id, data)
+    async def update_skill(self, skill_id, data, **kwargs):
+        return await self._run("update_skill", skill_id, data, **kwargs)
 
-    async def delete_skill(self, skill_id):
-        return await self._run("delete_skill", skill_id)
+    async def delete_skill(self, skill_id, **kwargs):
+        return await self._run("delete_skill", skill_id, **kwargs)
 
     # Experiences
-    async def save_experience(self, exp):
-        return await self._run("save_experience", exp)
+    async def save_experience(self, exp, **kwargs):
+        return await self._run("save_experience", exp, **kwargs)
 
-    async def get_experiences(self, profile_id):
-        return await self._run("get_experiences", profile_id)
+    async def get_experiences(self, profile_id, **kwargs):
+        return await self._run("get_experiences", profile_id, **kwargs)
 
-    async def get_experience_by_id(self, exp_id):
-        return await self._run("get_experience_by_id", exp_id)
+    async def get_experience_by_id(self, exp_id, **kwargs):
+        return await self._run("get_experience_by_id", exp_id, **kwargs)
 
-    async def update_experience(self, exp_id, data):
-        return await self._run("update_experience", exp_id, data)
+    async def update_experience(self, exp_id, data, **kwargs):
+        return await self._run("update_experience", exp_id, data, **kwargs)
 
-    async def delete_experience(self, exp_id):
-        return await self._run("delete_experience", exp_id)
+    async def delete_experience(self, exp_id, **kwargs):
+        return await self._run("delete_experience", exp_id, **kwargs)
 
     # Bullets
-    async def save_bullet(self, bullet):
-        return await self._run("save_bullet", bullet)
+    async def save_bullet(self, bullet, **kwargs):
+        return await self._run("save_bullet", bullet, **kwargs)
 
-    async def get_bullets(self, experience_id):
-        return await self._run("get_bullets", experience_id)
+    async def get_bullets(self, experience_id, **kwargs):
+        return await self._run("get_bullets", experience_id, **kwargs)
 
-    async def update_bullet(self, bullet_id, data):
-        return await self._run("update_bullet", bullet_id, data)
+    async def update_bullet(self, bullet_id, data, **kwargs):
+        return await self._run("update_bullet", bullet_id, data, **kwargs)
 
-    async def delete_bullet(self, bullet_id):
-        return await self._run("delete_bullet", bullet_id)
+    async def delete_bullet(self, bullet_id, **kwargs):
+        return await self._run("delete_bullet", bullet_id, **kwargs)
 
     # Projects
-    async def save_project(self, project):
-        return await self._run("save_project", project)
+    async def save_project(self, project, **kwargs):
+        return await self._run("save_project", project, **kwargs)
 
-    async def get_projects(self, profile_id):
-        return await self._run("get_projects", profile_id)
+    async def get_projects(self, profile_id, **kwargs):
+        return await self._run("get_projects", profile_id, **kwargs)
 
-    async def update_project(self, project_id, data):
-        return await self._run("update_project", project_id, data)
+    async def update_project(self, project_id, data, **kwargs):
+        return await self._run("update_project", project_id, data, **kwargs)
 
-    async def delete_project(self, project_id):
-        return await self._run("delete_project", project_id)
+    async def delete_project(self, project_id, **kwargs):
+        return await self._run("delete_project", project_id, **kwargs)
 
     # Education
-    async def save_education(self, edu):
-        return await self._run("save_education", edu)
+    async def save_education(self, edu, **kwargs):
+        return await self._run("save_education", edu, **kwargs)
 
-    async def get_education(self, profile_id):
-        return await self._run("get_education", profile_id)
+    async def get_education(self, profile_id, **kwargs):
+        return await self._run("get_education", profile_id, **kwargs)
 
-    async def update_education(self, edu_id, data):
-        return await self._run("update_education", edu_id, data)
+    async def update_education(self, edu_id, data, **kwargs):
+        return await self._run("update_education", edu_id, data, **kwargs)
 
-    async def delete_education(self, edu_id):
-        return await self._run("delete_education", edu_id)
+    async def delete_education(self, edu_id, **kwargs):
+        return await self._run("delete_education", edu_id, **kwargs)
 
     # JD Records
-    async def save_jd_record(self, jd):
-        return await self._run("save_jd_record", jd)
+    async def save_jd_record(self, jd, **kwargs):
+        return await self._run("save_jd_record", jd, **kwargs)
 
-    async def get_jd_record(self, jd_id):
-        return await self._run("get_jd_record", jd_id)
+    async def get_jd_record(self, jd_id, **kwargs):
+        return await self._run("get_jd_record", jd_id, **kwargs)
 
-    async def list_jd_records(self, user_id):
-        return await self._run("list_jd_records", user_id)
+    async def list_jd_records(self, user_id, **kwargs):
+        return await self._run("list_jd_records", user_id, **kwargs)
 
-    async def delete_jd_record(self, jd_id):
-        return await self._run("delete_jd_record", jd_id)
+    async def delete_jd_record(self, jd_id, **kwargs):
+        return await self._run("delete_jd_record", jd_id, **kwargs)
 
-    async def update_jd_match_score(self, jd_id, score):
-        return await self._run("update_jd_match_score", jd_id, score)
+    async def update_jd_record(self, jd_id, data, **kwargs):
+        return await self._run("update_jd_record", jd_id, data, **kwargs)
+
+    async def update_jd_match_score(self, jd_id, score, **kwargs):
+        return await self._run("update_jd_match_score", jd_id, score, **kwargs)
 
     # Resume Artifacts
-    async def save_resume_artifact(self, artifact):
-        return await self._run("save_resume_artifact", artifact)
+    async def save_resume_artifact(self, artifact, **kwargs):
+        return await self._run("save_resume_artifact", artifact, **kwargs)
 
-    async def get_resume_artifact(self, artifact_id):
-        return await self._run("get_resume_artifact", artifact_id)
+    async def get_resume_artifact(self, artifact_id, **kwargs):
+        return await self._run("get_resume_artifact", artifact_id, **kwargs)
 
-    async def list_resume_artifacts(self, user_id):
-        return await self._run("list_resume_artifacts", user_id)
+    async def list_resume_artifacts(self, user_id, **kwargs):
+        return await self._run("list_resume_artifacts", user_id, **kwargs)
 
-    async def delete_resume_artifact(self, artifact_id):
-        return await self._run("delete_resume_artifact", artifact_id)
+    async def delete_resume_artifact(self, artifact_id, **kwargs):
+        return await self._run("delete_resume_artifact", artifact_id, **kwargs)
 
-    async def delete_resume_artifacts_by_jd(self, jd_record_id):
-        return await self._run("delete_resume_artifacts_by_jd", jd_record_id)
+    async def delete_resume_artifacts_by_jd(self, jd_record_id, **kwargs):
+        return await self._run("delete_resume_artifacts_by_jd", jd_record_id, **kwargs)
 
-    async def update_resume_artifact(self, artifact_id, data):
-        return await self._run("update_resume_artifact", artifact_id, data)
+    async def update_resume_artifact(self, artifact_id, data, **kwargs):
+        return await self._run("update_resume_artifact", artifact_id, data, **kwargs)
 
     # Tasks
-    async def save_task(self, task):
-        return await self._run("save_task", task)
+    async def save_task(self, task, **kwargs):
+        return await self._run("save_task", task, **kwargs)
 
-    async def get_task(self, task_id):
-        return await self._run("get_task", task_id)
+    async def get_task(self, task_id, **kwargs):
+        return await self._run("get_task", task_id, **kwargs)
 
-    async def update_task(self, task_id, data):
-        return await self._run("update_task", task_id, data)
+    async def update_task(self, task_id, data, **kwargs):
+        return await self._run("update_task", task_id, data, **kwargs)
 
     # Token Usage
-    async def save_token_usage(self, usage):
-        return await self._run("save_token_usage", usage)
+    async def save_token_usage(self, usage, **kwargs):
+        return await self._run("save_token_usage", usage, **kwargs)
 
-    async def get_token_usage_by_workflow(self, workflow_run_id):
-        return await self._run("get_token_usage_by_workflow", workflow_run_id)
+    async def get_token_usage_by_workflow(self, workflow_run_id, **kwargs):
+        return await self._run("get_token_usage_by_workflow", workflow_run_id, **kwargs)
 
-    async def get_token_usage_in_range(self, user_id, start, end):
-        return await self._run("get_token_usage_in_range", user_id, start, end)
+    async def get_token_usage_in_range(self, user_id, start, end, **kwargs):
+        return await self._run("get_token_usage_in_range", user_id, start, end, **kwargs)
 
-    async def get_recent_token_usage(self, user_id, limit):
-        return await self._run("get_recent_token_usage", user_id, limit)
+    async def get_recent_token_usage(self, user_id, limit, **kwargs):
+        return await self._run("get_recent_token_usage", user_id, limit, **kwargs)
 
     # Logs
-    async def save_log_entry(self, entry):
-        return await self._run("save_log_entry", entry)
+    async def upsert_scout_leads(self, candidates, user_id=None, **kwargs):
+        return await self._run("upsert_scout_leads", candidates, user_id=user_id, **kwargs)
 
-    async def query_logs(self, category=None, level=None, search=None, limit=100, offset=0):
-        return await self._run("query_logs", category=category, level=level, search=search, limit=limit, offset=offset)
+    async def list_scout_leads(self, status=None, user_id=None, limit=200, **kwargs):
+        return await self._run("list_scout_leads", status=status, user_id=user_id, limit=limit, **kwargs)
 
-    async def delete_logs(self, older_than_days=0):
-        return await self._run("delete_logs", older_than_days)
+    async def get_demo_by_slug(self, slug, **kwargs):
+        return await self._run("get_demo_by_slug", slug, **kwargs)
 
-    async def get_log_stats(self):
-        return await self._run("get_log_stats")
+    async def get_scout_lead(self, lead_id, **kwargs):
+        return await self._run("get_scout_lead", lead_id, **kwargs)
+
+    async def update_scout_lead(self, lead_id, data, **kwargs):
+        return await self._run("update_scout_lead", lead_id, data, **kwargs)
+
+    async def delete_scout_lead(self, lead_id, **kwargs):
+        return await self._run("delete_scout_lead", lead_id, **kwargs)
+
+    async def save_log_entry(self, entry, **kwargs):
+        return await self._run("save_log_entry", entry, **kwargs)
+
+    async def query_logs(self, category=None, level=None, search=None, service=None, limit=100, offset=0, **kwargs):
+        return await self._run("query_logs", category=category, level=level, search=search, service=service, limit=limit, offset=offset, **kwargs)
+
+    async def delete_logs(self, older_than_days=0, **kwargs):
+        return await self._run("delete_logs", older_than_days, **kwargs)
+
+    async def get_log_stats(self, **kwargs):
+        return await self._run("get_log_stats", **kwargs)

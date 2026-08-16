@@ -15,6 +15,7 @@ class LogEntry(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     user_id: str = "local"
     level: str = "info"
+    service: str = "resume_tailor"
     category: str = "system"
     action: str = ""
     message: str = ""
@@ -66,8 +67,16 @@ class LoomLogger:
         error: Exception | None = None,
         **kwargs: Any,
     ) -> None:
+        service = kwargs.pop("service", "resume_tailor")
+        # Attributed to whoever's request is in flight, so the logs page shows
+        # one account its own activity and not the other's job titles.
+        # Unattended work (cron, CLI) falls back to LOOM_DEFAULT_USER_ID.
+        from loom.current_user import get_current_user
+
         entry = LogEntry(
+            user_id=kwargs.pop("user_id", None) or get_current_user(),
             level=level,
+            service=service,
             category=category,
             action=action,
             message=message,
@@ -80,7 +89,7 @@ class LoomLogger:
         # Fire and forget — don't block the caller
         asyncio.create_task(self._save(entry))
         # Also print to stdout
-        print(f"[{level.upper()}] {category}.{action}: {message}")
+        print(f"[{level.upper()}] [{service}] {category}.{action}: {message}")
 
     async def _save(self, entry: LogEntry) -> None:
         try:

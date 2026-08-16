@@ -1,0 +1,20 @@
+{# High-key, chalkboard headings, dense scannable produce lists. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#fffdf7;color:#233020;
+  font-family:'Trebuchet MS','Segoe UI',sans-serif}
+.hero{padding:3rem 1.5rem 2rem}
+h1{font-size:clamp(2.2rem,8vw,4.4rem);font-weight:700;margin:0;
+  display:inline-block;background:#233020;color:#fffdf7;
+  padding:.5rem 1rem;transform:rotate(-1deg)}
+.lede{margin-top:1.6rem;max-width:34rem;opacity:.8}
+.hero-img{margin-top:2rem}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.16em;
+  background:#233020;color:#fffdf7;display:inline-block;
+  padding:.35rem .8rem;margin:0 0 1.2rem}
+h3{font-size:1rem;font-weight:700;color:{{ palette.accent }};margin:1.6rem 0 .5rem}
+.band{padding:2.5rem 0;border-top:2px dashed rgba(35,48,32,.25)}
+.item{padding:.35rem 0}
+.facts-grid{display:grid;gap:1.5rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+{% endblock %}

@@ -39,39 +39,36 @@ BULLET_PATTERNS = """
 ## Professional bullet sentence patterns
 
 ### business_impact (first bullet)
-Pattern: "[Verb] [user group] to [outcome] by building [system] that [capability]"
+Pattern: "[Verb] [user group] to [outcome] — [key technical means]"
 Examples:
-- "Enabled retail investors with no coding background to design and backtest custom trading strategies — built Python indicator pipeline computing 60+ technical indicators on 5 years of OHLC data"
-- "Reduced procurement intelligence bottleneck for regional agencies across China — built automated pipeline collecting and normalizing 20,000+ government bidding records into queryable format"
+- "Enabled [N] non-technical users to [specific capability] — built [Tech] pipeline processing [scale metric]"
+- "Reduced [bottleneck] for [user group] — built automated [system] collecting and normalizing [N]+ records"
 
 ### technical_design
 Pattern: "Designed [component] using [approach], enabling [technical outcome]"
 Examples:
-- "Designed dependency-aware computation pipeline where each indicator declares its inputs — enabling automatic topological execution ordering and selective cache reuse"
-- "Architected serverless crawling infrastructure using AWS Lambda for parallel extraction and Step Functions for orchestration — decoupling ingestion rate from infrastructure scaling"
+- "Designed [architecture pattern] where each [unit] declares [dependencies] — enabling automatic [optimization] and [benefit]"
+- "Architected [system type] using [cloud/infra tech] for [parallel/distributed task] — decoupling [concern A] from [concern B]"
 
 ### implementation
 Pattern: "Built [component] in [technology] that [behavior], enabling [capability]"
 Examples:
-- "Built Node.js validation pipeline normalizing heterogeneous procurement data — standardizing bidding amounts, dates, and location hierarchies from 30+ provincial sources"
-- "Built containerized deployment pipeline with GitHub Actions, ECS, and CloudFront — enabling zero-downtime releases through blue-green container replacement"
+- "Built [Tech] validation pipeline normalizing heterogeneous [data type] — standardizing [fields] from [N]+ sources"
+- "Built containerized deployment pipeline with [CI/CD tools] — enabling zero-downtime releases"
 
 ### scale
 Pattern: "[System] processes [scale metric], [outcome]"
 Examples:
-- "Indicator pipeline processes 5 years of daily OHLC data across 3 markets in under 2 seconds per indicator — enabling real-time strategy iteration"
+- "[System] processes [volume] of [data type] in under [time] — enabling [real-time capability]"
 
 ### problem_solving
 Pattern: "Resolved [challenge] by [approach] — [outcome]"
 Examples:
-- "Resolved time-series alignment inconsistency by enforcing canonical timeline on all computation outputs — eliminating visualization desynchronization"
+- "Resolved [data/system inconsistency] by [technical approach] — eliminating [downstream issue]"
 
 ### research (academic projects)
 First bullet: "Investigated [research question] by [methodology] — [key finding]"
 Subsequent: "[Built/Designed] [component] to [enable measurement], [result]"
-Examples:
-- "Investigated whether embedding PDE constraints into neural network loss functions improves accuracy over data-only approaches — validated against analytical solutions"
-- "Designed end-to-end ECG digitization pipeline to enable clinicians to convert paper records into structured diagnostic data"
 
 ## Application rules
 1. Never start two bullets in same section with same verb
@@ -185,6 +182,49 @@ Return ONLY valid JSON:
 CRITICAL: bullet content must be PLAIN TEXT. No **, *, `, ---. No LaTeX.
 """ + BULLET_PATTERNS
 
+CHINESE_WRITING_SUPPLEMENT = """
+
+## 中文写作规范（当输出语言为中文时适用）
+
+### 句式多样性规范（最重要）
+
+同一段经历的多条 bullet 必须使用不同的句式结构：
+
+第1条（business_impact）：
+以用户/受益者开头，说明价值
+句式："为[用户群体][动词][成果]——[技术手段]"
+这是唯一允许用"为...使其能..."句式的一条。
+
+第2条（technical_design）：
+以技术决策开头，说明设计理由
+句式："设计/架构[技术组件]，[解决了什么问题]——[具体做法]"
+
+第3条（implementation/scale）：
+以动作动词开头，说明具体实现
+句式："构建/实现/搭建[组件]，[具体能力]——[技术细节]"
+
+第4条（problem_solving/collaboration，如有）：
+以挑战或影响开头
+句式："解决/优化/主导[具体挑战]——[方法和结果]"
+
+### 严格禁止
+
+- 同一段经历里超过一条 bullet 以"为"开头
+- 连续两条 bullet 使用相同的动词开头
+- "使其能"只允许第1条使用，第2/3/4条禁用
+- 如果两条 bullet 的前8个字有超过5个字相同 → 必须改写
+
+### 技术词规范
+技术名称保持英文原文，不翻译：
+Python, FastAPI, PostgreSQL, AWS Lambda, Next.js, Docker, React 等
+
+### 动词层级
+架构/设计/主导 → 系统级决策
+构建/实现/开发/搭建 → 执行
+优化/提升/降低 → 成果
+禁止：负责、参与、协助、配合、以"我"开头、结尾加"等"
+"""
+
 PHASE1_USER = """\
 Write 2-{max_bullets} resume bullets for this experience, targeting the JD.
 Use more if strong content exists, fewer if thin. Never pad.
@@ -207,8 +247,10 @@ Period: {period}
 == TECH STACK FOR THIS ROLE ==
 {tech_stack}
 
-== LANGUAGE ==
+== OUTPUT LANGUAGE ==
 {language}
+Write ALL bullet content in {language}. If Chinese, write every bullet in Chinese.
+Technology names (Python, FastAPI, AWS etc.) stay in English. Everything else in {language}.
 
 Return JSON only."""
 
@@ -260,8 +302,10 @@ Tech Stack: {tech_stack}
 == SOURCE MATERIALS ==
 {bullets_material}
 
-== LANGUAGE ==
+== OUTPUT LANGUAGE ==
 {language}
+Write ALL bullet content in {language}. If Chinese, write every bullet in Chinese.
+Technology names stay in English. Everything else in {language}.
 
 Return JSON only."""
 
@@ -405,8 +449,24 @@ with a genuinely DIFFERENT aspect of the work (different artifact, different out
 BOTH user/problem context AND technical means (after a dash). If either half \
 is missing → severity=high.
 
+8. TECH CONSISTENCY CHECK: Verify technologies mentioned in bullets match \
+the tech_stack and action fields in source material. If a bullet mentions \
+a specific technology (e.g. AWS EC2, Nginx) but the source material lists \
+a different technology for the same purpose (e.g. AWS ECS, CloudFront), \
+flag as hallucination → severity=high. The candidate's actual tech stack \
+is ground truth.
+
+9. SENTENCE PATTERN DIVERSITY (especially for Chinese bullets): \
+Within the same section, check the opening pattern of each bullet. \
+If two bullets in the same section both start with the same structure \
+(e.g. both start with "为[someone]构建/开发..." or share >6 of the first 10 \
+characters), flag as PATTERN REPETITION → severity=high. \
+Only the FIRST bullet may use the "为[user group]..., 使其能..." pattern. \
+Bullets 2/3/4 MUST use different sentence structures (e.g. start with a \
+technical verb like 设计/构建/架构/实现/优化, not "为").
+
 Severity: high = fails 2+ questions OR hallucination=fail OR duplicate/overlap \
-OR incomplete first bullet, \
+OR incomplete first bullet OR pattern repetition, \
 medium = fails exactly 1 question (no hallucination), low = minor wording.
 
 Return ONLY valid JSON:
@@ -540,25 +600,58 @@ def make_latex_processor(profile_data: dict):
 # ── Date formatting ──────────────────────────────────────────────────
 
 DEGREE_ABBREV = {
-    "Master of Computer Science": ("M.S.", "Computer Science"),
+    # Doctorates
+    "Doctor of Philosophy": ("Ph.D.", ""),
+    "Doctor of Education": ("Ed.D.", ""),
+    "Doctor of Business Administration": ("D.B.A.", ""),
+    # Masters
     "Master of Science": ("M.S.", ""),
     "Master of Arts": ("M.A.", ""),
     "Master of Engineering": ("M.Eng.", ""),
-    "Bachelor of Applied Mathematics": ("B.S.", "Applied Mathematics"),
+    "Master of Business Administration": ("M.B.A.", ""),
+    "Master of Technology": ("M.Tech.", ""),
+    "Master of Fine Arts": ("M.F.A.", ""),
+    "Master of Public Health": ("M.P.H.", ""),
+    "Master of Laws": ("LL.M.", ""),
+    # Bachelors
     "Bachelor of Science": ("B.S.", ""),
     "Bachelor of Arts": ("B.A.", ""),
     "Bachelor of Engineering": ("B.Eng.", ""),
-    "Doctor of Philosophy": ("Ph.D.", ""),
+    "Bachelor of Technology": ("B.Tech.", ""),
+    "Bachelor of Business Administration": ("B.B.A.", ""),
+    "Bachelor of Fine Arts": ("B.F.A.", ""),
+    # Associate / others
+    "Associate of Science": ("A.S.", ""),
+    "Associate of Arts": ("A.A.", ""),
+    "Graduate Diploma": ("Grad. Dip.", ""),
+    "Graduate Certificate": ("Grad. Cert.", ""),
 }
+
+# Prefix patterns for fuzzy matching: "Master of X" → ("M.S.", "X")
+_DEGREE_PREFIX_MAP = [
+    ("Doctor of", "Ph.D."),
+    ("Master of", "M.S."),
+    ("Bachelor of", "B.S."),
+    ("Associate of", "A.S."),
+]
 
 
 def _format_degree(degree: str) -> tuple[str, str]:
     """Convert full degree to (abbreviation, subject).
 
     Returns e.g. ("M.S.", "Computer Science") for "Master of Computer Science".
+    Tries exact prefix match first, then fuzzy prefix extraction.
     """
+    # Exact match
     for full, (abbrev, subject) in DEGREE_ABBREV.items():
         if degree.startswith(full):
+            # Extract subject after known prefix
+            remainder = degree[len(full):].strip()
+            return abbrev, subject or remainder
+    # Fuzzy prefix: "Master of X" → ("M.S.", "X")
+    for prefix, abbrev in _DEGREE_PREFIX_MAP:
+        if degree.startswith(prefix):
+            subject = degree[len(prefix):].strip()
             return abbrev, subject
     return degree, ""
 
@@ -570,12 +663,13 @@ def _format_date(date_str: str | None) -> str:
     return f"{parts[1]}/{parts[0]}" if len(parts) >= 2 else date_str
 
 
-def _format_period(start: str | None, end: str | None) -> str:
+def _format_period(start: str | None, end: str | None, language: str = "en") -> str:
     s = _format_date(start)
     if not s:
         return ""
     e = _format_date(end)
-    return f"{s} -- {e}" if e else f"{s} -- Present"
+    present = "\u81F3\u4ECA" if language == "zh" else "Present"
+    return f"{s} -- {e}" if e else f"{s} -- {present}"
 
 
 # ── Line estimation ──────────────────────────────────────────────────
@@ -627,9 +721,13 @@ class GenerateResumeStep(Step):
         self.resume_repo = ResumeRepository(self.storage)
         self.claude.set_storage(self.storage)
 
-        self._tex_source = (PROMPTS_DIR / "resume_template.tex").read_text(encoding="utf-8")
-        self._md_template = Environment().from_string(
+        self._tex_source_en = (PROMPTS_DIR / "resume_template.tex").read_text(encoding="utf-8")
+        self._tex_source_zh = (PROMPTS_DIR / "resume_template_zh.tex").read_text(encoding="utf-8")
+        self._md_template_en = Environment().from_string(
             (PROMPTS_DIR / "resume_template.md").read_text(encoding="utf-8")
+        )
+        self._md_template_zh = Environment().from_string(
+            (PROMPTS_DIR / "resume_template_zh.md").read_text(encoding="utf-8")
         )
 
     async def run(self, context: PipelineContext) -> PipelineContext:
@@ -645,7 +743,7 @@ class GenerateResumeStep(Step):
             user_id=context.user_id,
         )
 
-        profile_data = await self.profile_repo.get_full_profile(context.user_id)
+        profile_data = await self.profile_repo.get_full_profile(context.user_id, lang=language)
         if not profile_data:
             artifact = await self._create_empty_artifact(context, "No profile found")
             new_data = {**context.data, "resume_artifact_id": str(artifact.id)}
@@ -759,7 +857,7 @@ class GenerateResumeStep(Step):
 
         phase3_results, removed, review_notes = await self._phase3_review(
             phase1_results, phase2_results, profile_data, jd_parsed, match_result,
-            by_experience, integration_pool, experiences,
+            by_experience, integration_pool, experiences, language,
         )
 
         try:
@@ -780,20 +878,25 @@ class GenerateResumeStep(Step):
             if not exp:
                 continue
             company = exp.company_en or "Unknown"
-            scrutiny_source[company] = {
-                "bullets_star_data": [
-                    {
-                        "type": b.get("type", "unknown"),
-                        "action": b.get("star_data", {}).get("action", ""),
-                        "result_quantified": b.get("star_data", {}).get("result_quantified", ""),
-                        "result_qualitative": b.get("star_data", {}).get("result_qualitative", ""),
-                    }
-                    for b in selected
-                ],
-            }
+            star_items = []
+            for b in selected:
+                item: dict[str, Any] = {
+                    "type": b.get("type", "unknown"),
+                    "action": b.get("star_data", {}).get("action", ""),
+                    "result_quantified": b.get("star_data", {}).get("result_quantified", ""),
+                    "result_qualitative": b.get("star_data", {}).get("result_qualitative", ""),
+                    "tech_stack": [
+                        t.get("name", "") if isinstance(t, dict) else str(t)
+                        for t in (b.get("tech_stack") or [])
+                    ],
+                }
+                if language == "zh" and b.get("content_zh"):
+                    item["content_ref"] = b["content_zh"]
+                star_items.append(item)
+            scrutiny_source[company] = {"bullets_star_data": star_items}
 
         phase3b_results, phase3b_debug = await self._phase3b_scrutiny(
-            phase3_results, scrutiny_source,
+            phase3_results, scrutiny_source, language,
         )
 
         # Update phase1_exp_data bullets with scrutiny results
@@ -805,8 +908,14 @@ class GenerateResumeStep(Step):
         # ── Phase 4: One-page enforcement ────────────────────────
 
         tpl_ctx = self._build_template_context(
-            profile_data, phase1_exp_data, phase3b_results, jd_parsed,
+            profile_data, phase1_exp_data, phase3b_results, jd_parsed, language,
         )
+
+        # Refine skill contexts via Claude — generate general usage descriptions
+        tpl_ctx["skills"] = await self._refine_skill_contexts(
+            tpl_ctx["skills"], profile_data, language,
+        )
+
         exp_relevance = match_result.get("experience_relevance", {})
         lines_before = estimate_lines(tpl_ctx)
         projects_before = len(tpl_ctx.get("projects", []))
@@ -830,11 +939,13 @@ class GenerateResumeStep(Step):
             pass
 
         # Render templates — tex filter uses dynamic terms from profile
-        content_md = self._md_template.render(**tpl_ctx)
+        md_template = self._md_template_zh if language == "zh" else self._md_template_en
+        content_md = md_template.render(**tpl_ctx)
         latex_filter = make_latex_processor(profile_data)
         tex_env = Environment()
         tex_env.filters["latex"] = latex_filter
-        tex_template = tex_env.from_string(self._tex_source)
+        tex_source = self._tex_source_zh if language == "zh" else self._tex_source_en
+        tex_template = tex_env.from_string(tex_source)
         content_tex = tex_template.render(**tpl_ctx)
 
         # Save artifact
@@ -889,6 +1000,7 @@ class GenerateResumeStep(Step):
     ) -> list[str]:
         """Generate bullets for one experience using only its own data."""
 
+        is_zh = language == "zh"
         materials = []
         for b in selected_bullets:
             star = b.get("star_data", {})
@@ -903,9 +1015,14 @@ class GenerateResumeStep(Step):
                 m += f"  Result (quantified): {star['result_quantified']}\n"
             if star.get("result_qualitative"):
                 m += f"  Result (qualitative): {star['result_qualitative']}\n"
-            raw = b.get("raw_text") or b.get("content_en", "")
-            if raw:
-                m += f"  content_en (reference only): {raw}\n"
+            # Use Chinese content when available for zh generation
+            if is_zh:
+                ref = b.get("content_zh") or b.get("content_en") or b.get("raw_text", "")
+            else:
+                ref = b.get("raw_text") or b.get("content_en", "")
+            if ref:
+                label = "参考内容" if is_zh else "content_en (reference only)"
+                m += f"  {label}: {ref}\n"
             materials.append(m)
 
         tech_parts = set()
@@ -929,15 +1046,18 @@ class GenerateResumeStep(Step):
             for proj in linked_projects:
                 proj_name = proj.get("name", "")
                 for b in proj.get("bullets", [])[:3]:
-                    content = b.get("content_en") or ""
+                    # Use language-resolved content (integration_pool now fetched with lang)
+                    content = b.get("content") or b.get("content_en") or ""
                     star = b.get("star_data", {})
-                    part = f"- From project built during this role:\n"
+                    part_label = "此角色期间构建的项目" if is_zh else "From project built during this role"
+                    part = f"- {part_label}:\n"
                     if star.get("action"):
                         part += f"  Action: {star['action']}\n"
                     if star.get("result_quantified"):
                         part += f"  Result: {star['result_quantified']}\n"
                     if content:
-                        part += f"  Reference: {content[:150]}\n"
+                        ref_label = "参考" if is_zh else "Reference"
+                        part += f"  {ref_label}: {content[:150]}\n"
                     linked_parts.append(part)
                 # Also add project tech stack
                 for t in proj.get("tech_stack", []):
@@ -959,6 +1079,13 @@ class GenerateResumeStep(Step):
                     + "\n".join(linked_parts) + coverage_req
                 )
 
+        if is_zh:
+            company_display = exp.company_zh or exp.company_en or ""
+            title_display = exp.title_zh or exp.title_en or ""
+        else:
+            company_display = exp.company_en or ""
+            title_display = exp.title_en or ""
+
         prompt = PHASE1_USER.format(
             max_bullets=max_bullets,
             jd_title=jd_parsed.get("title", "Unknown"),
@@ -966,17 +1093,18 @@ class GenerateResumeStep(Step):
             jd_required=", ".join(jd_req["required_skills"]) or "Not specified",
             jd_key_requirements="; ".join(jd_req["key_requirements"][:5]) or "Not specified",
             jd_focus=", ".join(jd_req["jd_focus"]) or "General",
-            company=exp.company_en,
-            title=exp.title_en,
+            company=company_display,
+            title=title_display,
             period=period,
             bullets_material="\n".join(materials) or "None",
             tech_stack=", ".join(tech_parts) or "Not specified",
             language="English" if language == "en" else "Chinese",
         ) + linked_section
 
+        system = PHASE1_SYSTEM + (CHINESE_WRITING_SUPPLEMENT if language == "zh" else "")
         try:
             result = await self.claude.extract_json(
-                prompt=prompt, model=Model.HAIKU, system=PHASE1_SYSTEM,
+                prompt=prompt, model=Model.HAIKU, system=system,
             )
             bullets_raw = result.get("bullets", [])
             # Extract content from structured or plain format
@@ -1007,9 +1135,14 @@ class GenerateResumeStep(Step):
     ) -> list[str]:
         """Generate bullets for one project using only its own data."""
 
+        is_zh = language == "zh"
         materials = []
         for b in proj.get("bullets", [])[:4]:
-            content = b.get("content_en") or b.get("content") or ""
+            # Use language-resolved content from integration_pool
+            if is_zh:
+                content = b.get("content") or b.get("content_en") or ""
+            else:
+                content = b.get("content_en") or b.get("content") or ""
             btype = b.get("type", "unknown")
             star = b.get("star_data", {})
             m = f"- Type: {btype}\n"
@@ -1018,7 +1151,8 @@ class GenerateResumeStep(Step):
             if star.get("result_quantified"):
                 m += f"  Result: {star['result_quantified']}\n"
             if content:
-                m += f"  content_en (reference): {content[:200]}\n"
+                label = "参考内容" if is_zh else "content_en (reference)"
+                m += f"  {label}: {content[:200]}\n"
             materials.append(m)
 
         tech_names = [
@@ -1038,7 +1172,8 @@ class GenerateResumeStep(Step):
 
         try:
             result = await self.claude.extract_json(
-                prompt=prompt, model=Model.HAIKU, system=PHASE2_SYSTEM,
+                prompt=prompt, model=Model.HAIKU,
+                system=PHASE2_SYSTEM + (CHINESE_WRITING_SUPPLEMENT if language == "zh" else ""),
             )
             bullets_raw = result.get("bullets", [])
             bullets = []
@@ -1064,6 +1199,7 @@ class GenerateResumeStep(Step):
         by_experience: dict[str, list[dict]],
         integration_pool: dict,
         experiences_map: dict,
+        language: str = "en",
     ) -> tuple[dict[str, list[str]], list[dict], str]:
         """Review all bullets against STAR source material.
 
@@ -1080,6 +1216,7 @@ class GenerateResumeStep(Step):
         # Build source_material: STAR ground truth for each company/project
         source_material: dict[str, Any] = {"experiences": {}, "projects": {}}
 
+        is_zh = language == "zh"
         for exp_id_str, selected in by_experience.items():
             exp = experiences_map.get(UUID(exp_id_str))
             if not exp:
@@ -1093,7 +1230,7 @@ class GenerateResumeStep(Step):
                     t.get("name", "") if isinstance(t, dict) else str(t)
                     for t in tech
                 ]
-                star_entries.append({
+                entry: dict[str, Any] = {
                     "type": b.get("type", "unknown"),
                     "situation": star.get("situation", ""),
                     "task": star.get("task", ""),
@@ -1101,7 +1238,11 @@ class GenerateResumeStep(Step):
                     "result_quantified": star.get("result_quantified", ""),
                     "result_qualitative": star.get("result_qualitative", ""),
                     "tech_stack": tech_names,
-                })
+                }
+                # Include Chinese content reference when available
+                if is_zh and b.get("content_zh"):
+                    entry["content_ref"] = b["content_zh"]
+                star_entries.append(entry)
             source_material["experiences"][company] = {
                 "bullets_star_data": star_entries,
             }
@@ -1113,11 +1254,12 @@ class GenerateResumeStep(Step):
             proj_stars = []
             for b in proj.get("bullets", [])[:4]:
                 star = b.get("star_data", {})
+                content = b.get("content") or b.get("content_en") or ""
                 proj_stars.append({
                     "type": b.get("type", "unknown"),
                     "action": star.get("action", "") if isinstance(star, dict) else "",
                     "result": star.get("result_quantified", "") if isinstance(star, dict) else "",
-                    "content_en": b.get("content_en") or b.get("content") or "",
+                    "content_ref": content,
                 })
             source_material["projects"][proj_name] = {
                 "bullets_source": proj_stars,
@@ -1179,6 +1321,7 @@ class GenerateResumeStep(Step):
         self,
         approved: dict[str, list[str]],
         source_material: dict[str, Any],
+        language: str = "en",
     ) -> tuple[dict[str, list[str]], dict]:
         """Iterative scrutiny: review bullets, rewrite high-severity, repeat.
 
@@ -1258,6 +1401,9 @@ class GenerateResumeStep(Step):
                     h_note = (f"HALLUCINATED METRIC: \"{hallucinated_claim}\" — "
                               f"this number is NOT in the source data. Remove it.")
 
+                lang_note = ""
+                if language == "zh":
+                    lang_note = "\nIMPORTANT: Write the rewritten bullet in Chinese. Technology names stay in English."
                 rewrite_prompt = REWRITE_USER.format(
                     original=issue.get("original", current[section][idx]),
                     critique=issue.get("critique", ""),
@@ -1266,11 +1412,12 @@ class GenerateResumeStep(Step):
                     hallucination_note=h_note,
                     other_bullets="\n".join(f"- {b}" for b in other) or "None",
                     star_data_json=star_json,
-                )
+                ) + lang_note
 
+                rewrite_sys = REWRITE_SYSTEM + (CHINESE_WRITING_SUPPLEMENT if language == "zh" else "")
                 try:
                     rw = await self.claude.extract_json(
-                        prompt=rewrite_prompt, model=Model.SONNET, system=REWRITE_SYSTEM,
+                        prompt=rewrite_prompt, model=Model.SONNET, system=rewrite_sys,
                     )
                     new_text = rw.get("rewritten", "")
                     if new_text:
@@ -1330,6 +1477,7 @@ class GenerateResumeStep(Step):
         phase1_exp_data: list[dict],
         approved: dict[str, list[str]],
         jd_parsed: dict,
+        language: str = "en",
     ) -> dict:
         """Build Jinja2 template context from approved bullets."""
         p = profile["profile"]
@@ -1345,7 +1493,7 @@ class GenerateResumeStep(Step):
 
         # Skills — smart grouping with context (sources: bullets + all projects)
         skill_groups = self._generate_skill_groups(
-            profile.get("skills", []), jd_parsed, approved, profile,
+            profile.get("skills", []), jd_parsed, approved, profile, language,
         )
 
         # Education
@@ -1354,42 +1502,60 @@ class GenerateResumeStep(Step):
             degree = edu.get("degree") or ""
             field = edu.get("field") or ""
             abbrev, subject = _format_degree(degree)
-            # Build "M.S. in Computer Science (Machine Learning and Big Data)"
+            # Build "M.S. in Computer Science (Machine Learning and Big Data)",
+            # or "计算机科学硕士（机器学习与大数据）" for zh
+            is_zh_edu = language == "zh"
             degree_line = abbrev
             if subject:
-                degree_line += f" in {subject}"
+                degree_line += f"（{subject}）" if is_zh_edu else f" in {subject}"
             if field:
-                degree_line += f" ({field})"
+                degree_line += f"（{field}）" if is_zh_edu else f" ({field})"
+            if is_zh_edu:
+                degree_full = f"{degree}（{field}）" if field else degree
+            else:
+                degree_full = f"{degree} in {field}" if field else degree
             education_list.append({
-                "degree": f"{degree} in {field}" if field else degree,
+                "degree": degree_full,
                 "degree_abbrev": degree_line,
                 "field": None,  # already included in degree_abbrev
                 "institution": edu.get("institution") or "",
-                "period": _format_period(edu.get("start_date"), edu.get("end_date")),
+                "period": _format_period(edu.get("start_date"), edu.get("end_date"), language),
             })
 
         # Experiences — use approved bullets, fall back to phase1
         exp_list = []
+        exp_keys_en: set[str] = set()  # track English keys used in approved
         for exp_data in phase1_exp_data:
             exp: Experience = exp_data["experience"]
-            company = exp.company_en or ""
-            bullets = approved.get(company, exp_data["bullets"])
+            company_en = exp.company_en or ""
+            if language == "zh":
+                company = exp.company_zh or company_en
+                title = exp.title_zh or exp.title_en or ""
+                location = exp.location_zh or exp.location_en or ""
+            else:
+                company = company_en
+                title = exp.title_en or ""
+                location = exp.location_en or ""
+            # approved dict always uses English company names as keys
+            bullets = approved.get(company_en, exp_data["bullets"])
+            exp_keys_en.add(company_en)
             period = _format_period(
                 str(exp.start_date) if exp.start_date else None,
                 str(exp.end_date) if exp.end_date else None,
+                language,
             )
             exp_list.append({
-                "title": exp.title_en or "",
+                "title": title,
                 "company": company,
+                "location": location,
                 "period": period,
                 "bullets": list(bullets),
             })
 
-        # Projects — from approved
+        # Projects — from approved, skip experience keys (matched by English name)
         project_list = []
         for proj_name, bullets in approved.items():
-            # Skip if it's an experience (already handled)
-            if any(e["company"] == proj_name for e in exp_list):
+            if proj_name in exp_keys_en:
                 continue
             if bullets:
                 project_list.append({
@@ -1508,10 +1674,13 @@ class GenerateResumeStep(Step):
         jd_parsed: dict,
         approved_bullets: dict[str, list[str]],
         profile: dict | None = None,
+        language: str = "en",
     ) -> list[dict]:
-        """Generate max 4 skill groups with context, ATS-optimized.
+        """Generate skill groups dynamically from profile categories.
 
-        Sources: bullet text + ALL project tech stacks (linked + standalone).
+        Groups are derived from the actual skill categories in the user's
+        profile — not hardcoded. Context descriptions are built from the
+        skill `context` fields stored in the DB.
         """
         required = set(s.lower() for s in jd_parsed.get("required_skills", []))
         preferred = set(s.lower() for s in jd_parsed.get("preferred_skills", []))
@@ -1520,13 +1689,11 @@ class GenerateResumeStep(Step):
         # Collect evidence text from bullets + all projects
         evidence_parts = [b for bs in approved_bullets.values() for b in bs]
         if profile:
-            # Add standalone project tech names
             for proj in profile.get("projects", []):
                 for t in proj.get("tech_stack", []):
                     name = t.get("name", "") if isinstance(t, dict) else str(t)
                     if name:
                         evidence_parts.append(name)
-            # Add experience-linked project tech names
             for exp in profile.get("experiences", []):
                 for proj in exp.get("projects", []):
                     for t in proj.get("tech_stack", []):
@@ -1535,149 +1702,273 @@ class GenerateResumeStep(Step):
                             evidence_parts.append(name)
         bullet_text = " ".join(evidence_parts).lower()
 
-        # Build skill lookup by category
-        by_cat: dict[str, list[str]] = {}
+        # Build skill lookup by category, and collect context strings
+        by_cat: dict[str, list[dict]] = {}  # cat -> [{name, context}]
         for s in all_skills:
             cat = (s.get("category") or "Other").strip()
-            by_cat.setdefault(cat, []).append(s["name"])
+            by_cat.setdefault(cat, []).append({
+                "name": s["name"],
+                "context": s.get("context") or "",
+            })
 
-        # Define group templates with context generators
-        GROUP_DEFS = [
-            {
-                "label": "Full-Stack",
-                "alt_labels": ["Backend", "Frontend"],
-                "cats": ["Backend", "Frontend"],
-                "contexts": {
-                    "backend_heavy": "production web applications with API design and database optimization",
-                    "frontend_heavy": "interactive data platforms with real-time visualization",
-                    "balanced": "production platforms with AWS deployment and real-time data visualization",
-                },
-            },
-            {
-                "label": "Data & Analytics",
-                "alt_labels": ["Data Processing"],
-                "cats": ["Data Processing", "Database"],
-                "contexts": {
-                    "default": "time-series processing and quantitative strategy backtesting",
-                },
-            },
-            {
-                "label": "Cloud & DevOps",
-                "alt_labels": ["DevOps/Infra"],
-                "cats": ["DevOps/Infra"],
-                "contexts": {
-                    "default": "serverless pipelines and containerized deployments on AWS",
-                },
-            },
-            {
-                "label": "AI & Automation",
-                "alt_labels": ["AI/ML"],
-                "cats": ["AI/ML"],
-                "contexts": {
-                    "default": "agentic pipeline design and LLM integration",
-                },
-            },
+        # Merge rules: which DB categories map to same resume group
+        # Uses the actual categories present in the profile, not a fixed list
+        MERGE_RULES: list[dict] = [
+            {"cats": ["Backend", "Frontend"], "label_en": "Full-Stack",
+             "label_zh": "\u5168\u6808\u5f00\u53d1",
+             "alt_en": {"Backend": "Backend", "Frontend": "Frontend"},
+             "alt_zh": {"Backend": "\u540e\u7aef\u5f00\u53d1",
+                        "Frontend": "\u524d\u7aef\u5f00\u53d1"}},
+            {"cats": ["Data Processing", "Database"], "label_en": "Data & Analytics",
+             "label_zh": "\u6570\u636e\u4e0e\u5206\u6790"},
+            {"cats": ["DevOps/Infra"], "label_en": "Cloud & DevOps",
+             "label_zh": "\u4e91\u4e0eDevOps"},
+            {"cats": ["AI/ML"], "label_en": "AI & ML",
+             "label_zh": "AI\u4e0e\u673a\u5668\u5b66\u4e60"},
+            {"cats": ["Testing"], "label_en": "Testing",
+             "label_zh": "\u6d4b\u8bd5"},
+            {"cats": ["Mobile"], "label_en": "Mobile",
+             "label_zh": "\u79fb\u52a8\u5f00\u53d1"},
+            {"cats": ["Security"], "label_en": "Security",
+             "label_zh": "\u5b89\u5168"},
         ]
 
-        # Decide JD emphasis
+        is_zh = language == "zh"
+
+        # Detect JD emphasis for Backend/Frontend label switching.
+        # Match whole words only — substring matching gave false positives
+        # ("building" contains "ui", "restful" aside "rest" is fine but
+        # "restrict" is not), which mislabelled backend skills as Frontend.
         jd_text = " ".join(jd_parsed.get("required_skills", []) +
                            jd_parsed.get("key_requirements", [])).lower()
-        is_backend = any(w in jd_text for w in ("backend", "api", "server", "database", "sql"))
-        is_frontend = any(w in jd_text for w in ("frontend", "react", "ui", "ux", "javascript"))
-        is_data = any(w in jd_text for w in ("data", "analytics", "pipeline", "etl", "pandas"))
-        is_ai = any(w in jd_text for w in ("ai", "ml", "llm", "machine learning", "nlp"))
+        jd_words = set(re.findall(r"[a-z0-9+#.]+", jd_text))
 
-        # Build groups
+        def _mentions(words: tuple[str, ...]) -> bool:
+            return any(w in jd_words for w in words)
+
+        is_backend = _mentions((
+            "backend", "back-end", "api", "apis", "server", "server-side",
+            "database", "databases", "sql", "microservice", "microservices",
+            "distributed", "rest", "restful", "graphql",
+        ))
+        is_frontend = _mentions((
+            "frontend", "front-end", "react", "vue", "angular", "ui", "ux",
+            "javascript", "typescript", "css", "responsive",
+        ))
+
         groups: list[dict] = []
         used_skills: set[str] = set()
+        handled_cats: set[str] = set()
 
-        for gdef in GROUP_DEFS:
-            # Collect skills from matching categories
+        def _build_group(cats: list[str], label: str) -> dict | None:
+            """Build one skill group from the given categories."""
             techs: list[str] = []
-            for cat in gdef["cats"]:
-                for name in by_cat.get(cat, []):
-                    if name not in used_skills:
-                        nl = name.lower()
-                        # Only include if: appears in bullets, or is JD required/preferred
-                        in_bullets = nl in bullet_text
-                        in_jd = nl in jd_skills
-                        if in_bullets or in_jd:
-                            techs.append(name)
+            ctx_parts: list[str] = []
+            for cat in cats:
+                for entry in by_cat.get(cat, []):
+                    name = entry["name"]
+                    if name in used_skills:
+                        continue
+                    nl = name.lower()
+                    if nl in bullet_text or nl in jd_skills:
+                        techs.append(name)
+                        if entry["context"]:
+                            ctx_parts.append(entry["context"])
 
             if not techs:
-                continue
+                return None
 
             # Sort: JD-required first, then preferred, then rest
-            def skill_sort_key(name: str) -> int:
-                nl = name.lower()
-                if nl in required:
-                    return 0
-                if nl in preferred:
-                    return 1
-                return 2
+            def _sort(n: str) -> int:
+                nl = n.lower()
+                return 0 if nl in required else (1 if nl in preferred else 2)
+            techs.sort(key=_sort)
 
-            techs.sort(key=skill_sort_key)
-
-            # ATS: ensure JD skills in this category domain appear
+            # ATS: ensure JD skills in these categories appear
             for jd_s in jd_parsed.get("required_skills", []):
                 jd_sl = jd_s.lower()
                 if jd_sl not in {t.lower() for t in techs}:
-                    # Check if this JD skill belongs to this group's domain
-                    for cat in gdef["cats"]:
-                        cat_names = {n.lower() for n in by_cat.get(cat, [])}
+                    for cat in cats:
+                        cat_names = {e["name"].lower() for e in by_cat.get(cat, [])}
                         if jd_sl in cat_names and jd_s not in used_skills:
                             techs.append(jd_s)
 
             if not techs:
-                continue
-
-            # Pick context
-            contexts = gdef["contexts"]
-            if "Full-Stack" in gdef["label"]:
-                if is_backend and not is_frontend:
-                    ctx = contexts.get("backend_heavy", contexts.get("default", ""))
-                elif is_frontend and not is_backend:
-                    ctx = contexts.get("frontend_heavy", contexts.get("default", ""))
-                else:
-                    ctx = contexts.get("balanced", contexts.get("default", ""))
-                # Adjust label
-                if is_backend and not is_frontend:
-                    label = "Backend"
-                elif is_frontend and not is_backend:
-                    label = "Frontend"
-                else:
-                    label = gdef["label"]
-            else:
-                ctx = contexts.get("default", "")
-                label = gdef["label"]
+                return None
 
             # Skip groups with no JD relevance and only 1-2 techs
-            has_jd_match = any(t.lower() in jd_skills for t in techs)
-            if not has_jd_match and len(techs) <= 2:
-                continue
+            has_jd = any(t.lower() in jd_skills for t in techs)
+            if not has_jd and len(techs) <= 2:
+                return None
+
+            # Pick the single best context from skill DB (first JD-matched skill's context)
+            ctx = ""
+            for c in ctx_parts:
+                if c.strip():
+                    ctx = c.strip()
+                    break
 
             content = ", ".join(techs[:8])
             if ctx:
-                content += f" — {ctx}"
+                content += f" \u2014 {ctx}"
 
-            groups.append({"category": label, "content": content})
             used_skills.update(techs)
+            return {"category": label, "content": content}
 
-            if len(groups) >= 4:
-                break
+        # Phase 1: build groups from merge rules
+        for rule in MERGE_RULES:
+            cats = rule["cats"]
+            # Only build if at least one category exists in profile
+            if not any(c in by_cat for c in cats):
+                continue
+
+            label = rule.get("label_zh" if is_zh else "label_en", cats[0])
+
+            # For Backend+Frontend merged group, adjust label by JD emphasis
+            alt = rule.get("alt_zh" if is_zh else "alt_en", {})
+            if len(cats) == 2 and "Backend" in cats and "Frontend" in cats:
+                # The label must also match what actually lands in the group:
+                # a JD-driven "Frontend" label over an all-backend skill list
+                # is worse than the neutral merged label.
+                avail = {c: {e["name"] for e in by_cat.get(c, [])} - used_skills
+                         for c in ("Backend", "Frontend")}
+                has_back, has_front = bool(avail["Backend"]), bool(avail["Frontend"])
+                if is_backend and not is_frontend and has_back:
+                    label = alt.get("Backend", label)
+                elif is_frontend and not is_backend and has_front:
+                    label = alt.get("Frontend", label)
+                elif has_back and not has_front:
+                    label = alt.get("Backend", label)
+                elif has_front and not has_back:
+                    label = alt.get("Frontend", label)
+
+            group = _build_group(cats, label)
+            if group:
+                groups.append(group)
+            handled_cats.update(cats)
+
+        # Phase 2: catch-all — any profile categories not covered by merge rules
+        for cat in by_cat:
+            if cat in handled_cats:
+                continue
+            label = cat  # use the raw DB category as label
+            group = _build_group([cat], label)
+            if group:
+                groups.append(group)
 
         # Score and sort: JD-most-relevant group first
         def group_relevance(g: dict) -> int:
             score = 0
-            for tech in g["content"].split(" — ")[0].split(", "):
-                if tech.strip().lower() in required:
+            for tech in g["content"].split(" \u2014 ")[0].split(", "):
+                tl = tech.strip().lower()
+                if tl in required:
                     score += 2
-                elif tech.strip().lower() in preferred:
+                elif tl in preferred:
                     score += 1
             return score
 
         groups.sort(key=group_relevance, reverse=True)
-        return groups
+        return groups[:5]
+
+    async def _refine_skill_contexts(
+        self,
+        raw_groups: list[dict],
+        profile: dict,
+        language: str,
+    ) -> list[dict]:
+        """Use Claude Haiku to generate proper general-purpose context descriptions
+        and translate category names for Chinese.
+
+        Replaces raw DB context strings (which are project-specific) with
+        concise general usage scenario descriptions.
+        """
+        if not raw_groups:
+            return raw_groups
+
+        import json
+
+        # Collect all skill contexts from profile as background material
+        skill_contexts: dict[str, str] = {}
+        for s in profile.get("skills", []):
+            if s.get("context"):
+                skill_contexts[s["name"]] = s["context"]
+
+        # Build input for Claude
+        groups_input = []
+        for g in raw_groups:
+            tech_list = g["content"].split(" \u2014 ")[0]  # before the dash
+            groups_input.append({
+                "category": g["category"],
+                "technologies": tech_list,
+            })
+
+        is_zh = language == "zh"
+        lang_instruction = (
+            "Output language: Chinese. Category names must be in Chinese. "
+            "Context descriptions must be in Chinese (10-20 characters). "
+            "Technology names stay in English."
+        ) if is_zh else (
+            "Output language: English. Context descriptions: 8-15 words."
+        )
+
+        prompt = f"""\
+Generate a concise context description for each skill group on a resume.
+
+The context (after the dash) must describe the candidate's GENERAL usage
+scenario for these technologies — not a specific project description.
+
+It should answer: "What type of work does this candidate use these technologies for?"
+
+GOOD (general scenario):
+- "time-series data processing, quantitative strategy backtesting, and data visualization"
+- "production web platform development with cloud deployment"
+- "serverless data pipelines and containerized application deployment"
+- "LLM fine-tuning and AI-native application development"
+
+BAD (project-specific):
+- "temperature field visualization and training convergence" (one project only)
+- "LLM-powered JD parsing and semantic matching" (one product only)
+
+{lang_instruction}
+
+{"Also translate category names to accurate Chinese resume section titles (2-6 chars). " if is_zh else ""}
+
+== SKILL GROUPS ==
+{json.dumps(groups_input, indent=2, ensure_ascii=False)}
+
+== CANDIDATE SKILL CONTEXTS (reference only — do NOT copy directly) ==
+{json.dumps(skill_contexts, indent=2, ensure_ascii=False)}
+
+Return ONLY valid JSON:
+{{
+  "groups": [
+    {{"category": "category name{' in Chinese' if is_zh else ''}", "context": "general usage description"}}
+  ]
+}}"""
+
+        try:
+            result = await self.claude.extract_json(
+                prompt=prompt, model=Model.HAIKU,
+                system="You are a resume formatting assistant. Generate concise, accurate skill group descriptions.",
+            )
+            refined = result.get("groups", [])
+            if len(refined) != len(raw_groups):
+                return raw_groups  # mismatch — keep originals
+
+            output = []
+            for raw, ref in zip(raw_groups, refined):
+                tech_list = raw["content"].split(" \u2014 ")[0]
+                ctx = ref.get("context", "").strip()
+                cat = ref.get("category", raw["category"]).strip()
+                content = tech_list
+                if ctx:
+                    content += f" \u2014 {ctx}"
+                output.append({"category": cat, "content": content})
+            return output
+
+        except Exception as e:
+            logger.warning("Skill context refinement failed, using raw: %s", e)
+            return raw_groups
 
     def _enforce_one_page(
         self, ctx: dict, exp_relevance: dict[str, Any],

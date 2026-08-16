@@ -1,0 +1,49 @@
+{#
+  Geometric display, serif body, content offset left, and a shelf strip.
+
+  This direction used to set Helvetica against Helvetica, which is not a
+  pairing — it is the absence of one, and it left the page with no voice of
+  its own. Futura against Charter is a real contrast: geometric name, warm
+  old-style body, which is roughly how a good deli's own signage and its
+  handwritten shelf tickets already differ from each other.
+
+  The signature is that shelf strip. Section headings sit on a band of the
+  accent that runs off both edges of the page, the way a price rail runs
+  along the front of a shelf. It is also the only place the accent appears at
+  full strength, so the page has exactly one loud element.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+{# The strip bleeds past both page edges, so both html and body have to clip.
+   Clipping body alone is not enough: scrollWidth is measured on the root, and
+   the page scrolled sideways to 2112px with only body hidden. #}
+html{overflow-x:hidden}
+body{font-family:Charter,'Bitstream Charter',Georgia,'Iowan Old Style',serif;
+  overflow-x:hidden}
+.hero{padding:0;position:relative}
+.hero-img{width:100%;height:min(62vh,30rem);object-fit:cover;
+  filter:sepia(.15) saturate(1.1)}
+.hero-text{padding:3rem 1.5rem 1rem;max-width:34rem}
+h1{font-family:Futura,'Futura PT','Century Gothic','Trebuchet MS',sans-serif;
+  font-size:clamp(2.5rem,9vw,5.5rem);font-weight:500;letter-spacing:-.01em;
+  line-height:1;margin:0}
+.lede{margin-top:1.2rem;font-size:1rem;opacity:.78;line-height:1.6}
+.wrap{max-width:60rem}
+.band{max-width:34rem;margin-left:0;padding:3.5rem 0}
+{# The strip is a pseudo-element rather than the heading itself. Bleeding the
+   heading with a negative margin and width:100vw looked right in the hero but
+   broke inside the two-column facts grid, where 50% resolves against a narrow
+   cell instead of the page and the band shot 672px past the right edge. An
+   absolutely positioned strip has no such dependency on its cell's width. #}
+h2{font-family:Futura,'Futura PT','Century Gothic','Trebuchet MS',sans-serif;
+  font-size:.75rem;text-transform:uppercase;letter-spacing:.16em;
+  font-weight:600;margin:0 0 1.6rem;padding:.5rem 0;
+  position:relative;z-index:0;color:{{ palette.paper }}}
+h2::before{content:"";position:absolute;z-index:-1;top:0;bottom:0;
+  left:-100vw;right:-100vw;background:{{ palette.accent }}}
+h3{font-family:Futura,'Futura PT','Century Gothic',sans-serif;
+  font-size:1.05rem;font-weight:600;margin:1.8rem 0 .6rem}
+.item .price{font-family:Futura,'Century Gothic',sans-serif}
+.facts-grid{display:grid;gap:3rem}
+@media(min-width:820px){.facts-grid{grid-template-columns:1fr 1fr;max-width:48rem}}
+{% endblock %}

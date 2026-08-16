@@ -107,13 +107,13 @@ export default function ExperienceCard({ experience, lang, onUpdate, linkedProje
     <div className={`bg-white rounded-lg border border-gray-200 p-6 ${!experience.is_visible ? "opacity-50" : ""}`}>
       {editing ? (
         <div className="space-y-3 mb-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input value={draft.company} onChange={(e) => setDraft({ ...draft, company: e.target.value })}
               placeholder="Company" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               placeholder="Title" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
               placeholder="Start (YYYY-MM)" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <input value={draft.end_date} onChange={(e) => setDraft({ ...draft, end_date: e.target.value })}

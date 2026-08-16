@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.llm import Claude, Model
+from loom.current_user import get_current_user
 from loom.storage.repository import BulletRepository, DataStorage, ProfileRepository
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ async def backfill_bullets(
     profile_repo = ProfileRepository(storage)
 
     # Get all experiences with bullets
-    exp_bullets = await bullet_repo.get_all_bullets_for_user("local")
+    exp_bullets = await bullet_repo.get_all_bullets_for_user(get_current_user())
 
     # Collect bullets needing backfill
     to_process: list[tuple[Any, Any]] = []  # (experience, bullet)

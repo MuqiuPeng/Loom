@@ -88,7 +88,7 @@ export default function ResumePanel({ jobId }: Props) {
           <div className="flex gap-0.5">
             {(["en", "zh"] as const).map((lang) => (
               <button key={lang}
-                className={`px-2 py-0.5 text-[10px] rounded ${
+                className={`px-2.5 py-1 text-xs rounded ${
                   genLanguage === lang ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"
                 }`}
                 onClick={() => setGenLanguage(lang)}
@@ -208,14 +208,14 @@ function ResumeItem({ resume, onStar, onDelete, onDownload }: {
         <div className="flex items-center gap-1 shrink-0">
           {resume.has_pdf && (
             <button onClick={() => window.open(`/api/resumes/${resume.id}/pdf`, "_blank")}
-              className="px-1.5 py-0.5 text-[10px] bg-indigo-600 text-white rounded hover:bg-indigo-700">PDF</button>
+              className="px-2 py-1 text-[11px] bg-indigo-600 text-white rounded hover:bg-indigo-700">PDF</button>
           )}
           <button onClick={() => resume.content_md && onDownload(resume.content_md, "md", "text/markdown", resume.id)}
             disabled={!resume.content_md}
-            className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded hover:bg-gray-200 disabled:opacity-40">.md</button>
+            className="px-2 py-1 text-[11px] bg-gray-100 text-gray-500 rounded hover:bg-gray-200 disabled:opacity-40">.md</button>
           <button onClick={() => resume.content_tex && onDownload(resume.content_tex, "tex", "application/x-tex", resume.id)}
             disabled={!resume.content_tex}
-            className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded hover:bg-gray-200 disabled:opacity-40">.tex</button>
+            className="px-2 py-1 text-[11px] bg-gray-100 text-gray-500 rounded hover:bg-gray-200 disabled:opacity-40">.tex</button>
           {confirmDel ? (
             <button onClick={onDelete} className="px-1.5 py-0.5 text-[10px] text-red-600">OK</button>
           ) : (

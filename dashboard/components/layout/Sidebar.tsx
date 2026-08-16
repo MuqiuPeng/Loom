@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavCollapsed } from "@/lib/nav-collapse";
 
 const MAIN_NAV = [
   {
@@ -12,6 +13,12 @@ const MAIN_NAV = [
       { label: "Resumes", href: "/resume-tailor/resumes" },
       { label: "Jobs", href: "/resume-tailor/jobs" },
       { label: "Workflows", href: "/resume-tailor/workflows" },
+    ],
+  },
+  {
+    section: "Outreach",
+    items: [
+      { label: "Company Scout", href: "/scout" },
     ],
   },
   {
@@ -34,6 +41,9 @@ const EXPO_NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // A detail panel elsewhere can ask for the room; the nav slides out of
+  // the way rather than shrinking the working area.
+  const collapsed = useNavCollapsed();
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -70,7 +80,8 @@ export default function Sidebar() {
       <aside
         className={`fixed left-0 top-0 h-screen w-60 bg-white border-r border-gray-200 flex flex-col z-50
           transition-transform duration-200 ease-in-out
-          ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+          ${open ? "translate-x-0" : "-translate-x-full"}
+          ${collapsed ? "md:-translate-x-full" : "md:translate-x-0"}`}
       >
         <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between">
           <Link href={isExpo ? "/expo/resume-tailor/profile" : "/"} className="text-xl font-bold tracking-tight">

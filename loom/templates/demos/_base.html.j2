@@ -1,0 +1,128 @@
+{#
+  Shared skeleton and content structure for every direction.
+
+  Everything the checker enforces lives here rather than in a prompt — doctype,
+  viewport, noindex, attribution. A generated page could omit any of them on
+  any run; a template cannot.
+
+  The content is here too, in blocks, because the sections a small business
+  page needs are the same everywhere: name, menu, hours, location, photos.
+  What differs between directions is CSS. A direction that genuinely needs a
+  different structure overrides the block; most only supply `style`.
+#}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ business }}</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:{{ palette.paper }};color:{{ palette.ink }};
+  -webkit-font-smoothing:antialiased;line-height:1.55}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:66rem;margin:0 auto;padding:0 1.5rem}
+.band{padding:4rem 0}
+.sample{display:inline-block;font-size:.7rem;letter-spacing:.08em;
+  text-transform:uppercase;opacity:.65;border:1px solid currentColor;
+  border-radius:99px;padding:.2rem .6rem;margin-bottom:.9rem}
+.credit{font-size:.75rem;opacity:.55;margin-top:.5rem}
+.item{display:flex;gap:1rem;align-items:baseline;padding:.45rem 0}
+.item .name{font-weight:600}
+.item .dots{flex:1;border-bottom:1px dotted currentColor;opacity:.35;
+  transform:translateY(-.25em)}
+.item .price{font-variant-numeric:tabular-nums;color:{{ palette.accent }}}
+.item .desc{display:block;font-size:.85rem;opacity:.7;font-weight:400}
+.gallery{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.facts p{margin:.2rem 0}
+.closing{padding:3rem 1.5rem;background:rgba(127,127,127,.09);text-align:center}
+.closing h3{margin:0 0 .5rem;font-size:1.05rem}
+.closing p{margin:0 auto;max-width:34rem;font-size:.9rem;opacity:.8}
+.closing .cta{margin-top:1rem;font-weight:600;color:{{ palette.accent }}}
+.closing .sig{margin-top:.6rem;font-size:.8rem;opacity:.7}
+footer{text-align:center;padding:2rem 1.5rem;font-size:.8rem;opacity:.55}
+a:focus-visible,button:focus-visible{outline:2px solid {{ palette.accent }};outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+{% block hero %}
+<header class="hero wrap">
+  <div class="hero-text">
+    <h1>{{ business }}</h1>
+    {% if about %}<p class="lede">{{ about }}</p>{% endif %}
+  </div>
+  {% if images %}<img class="hero-img" src="{{ images[0] }}" alt="">{% endif %}
+  {% if stock_used %}<p class="credit">{{ stock_note }}</p>{% endif %}
+</header>
+{% endblock %}
+
+<div class="wrap">
+{% block menu %}
+  {% if menu %}
+  <section class="band">
+    <h2>Menu</h2>
+    {% for group, items in menu_groups %}
+      {% if group %}<h3>{{ group }}</h3>{% endif %}
+      {% for item in items %}
+      <div class="item">
+        <span class="name">{{ item.name }}
+          {% if item.description %}<span class="desc">{{ item.description }}</span>{% endif %}
+        </span>
+        <span class="dots"></span>
+        <span class="price">{{ item.price or "—" }}</span>
+      </div>
+      {% endfor %}
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="band">
+    <h2>Menu</h2>
+    <span class="sample">{{ sample_note }}</span>
+    <p>{{ menu_sample }}</p>
+  </section>
+  {% endif %}
+{% endblock %}
+
+{% block facts %}
+  <section class="band facts-grid">
+    <div class="facts">
+      <h2>Hours</h2>
+      {% if hours %}<p>{{ hours }}</p>
+      {% else %}<span class="sample">{{ sample_note }}</span><p>{{ hours_sample }}</p>{% endif %}
+    </div>
+    <div class="facts">
+      <h2>Find Us</h2>
+      {% if address %}<p>{{ address }}</p>{% endif %}
+      {% if phone %}<p><a href="tel:{{ phone_href }}">{{ phone }}</a></p>{% endif %}
+      {% if not address and not phone %}
+        <span class="sample">{{ sample_note }}</span><p>{{ location_sample }}</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
+
+{% block gallery %}
+  {% if images|length > 1 %}
+  <section class="band">
+    <h2>Gallery</h2>
+    <div class="gallery">
+      {% for src in images[1:5] %}<img src="{{ src }}" alt="" loading="lazy">{% endfor %}
+    </div>
+    {% if stock_used %}<p class="credit">{{ stock_note }}</p>{% endif %}
+  </section>
+  {% endif %}
+{% endblock %}
+</div>
+
+<section class="closing">
+  <h3>{{ attribution.headline }}</h3>
+  <p>{{ attribution.body }}</p>
+  <p class="cta">{{ attribution.cta }}</p>
+  <p class="sig">{{ attribution.built_by }} — <a href="mailto:{{ attribution.email }}">{{ attribution.email }}</a></p>
+</section>
+<footer>&copy; {{ business }}</footer>
+</body>
+</html>

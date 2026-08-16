@@ -1,0 +1,19 @@
+{# Condensed display filling the width, hard edges, dotted-leader menu. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#111;color:#f5f2ec}
+.hero{padding:3rem 1.5rem 2rem}
+h1{font-family:Impact,'Haettenschweiler','Arial Narrow Bold',sans-serif;
+  font-size:clamp(3.5rem,16vw,9rem);text-transform:uppercase;line-height:.85;
+  letter-spacing:.01em;margin:0}
+.lede{margin-top:1.2rem;max-width:36rem;opacity:.8}
+.hero-img{margin-top:2rem;filter:grayscale(.35) contrast(1.1)}
+.band{border-top:4px solid {{ palette.accent }};padding:2.5rem 0}
+h2{font-family:Impact,sans-serif;text-transform:uppercase;font-size:2rem;
+  letter-spacing:.02em;margin:0 0 1.2rem}
+h3{text-transform:uppercase;letter-spacing:.1em;font-size:.85rem;
+  color:{{ palette.accent }};margin:1.6rem 0 .6rem}
+.closing{background:rgba(255,255,255,.06)}
+.facts-grid{display:grid;gap:2rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+{% endblock %}

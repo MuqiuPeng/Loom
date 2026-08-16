@@ -47,6 +47,10 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+# Timestamped backups written next to .env — full copies, secrets and all.
+# Neither `.env` nor `*.bak` matches `.env.bak.1786691251`, so they sat
+# untracked and one `git add -A` away from being published.
+.env.bak*
 *.pem
 credentials.json
 
@@ -70,3 +74,6 @@ dashboard/node_modules/
 frontend/.next/
 frontend/node_modules/
 *.bak
+
+# Scratch space for inline email attachments (Lark requires relative paths)
+.loom-tmp/

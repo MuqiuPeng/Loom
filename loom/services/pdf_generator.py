@@ -28,14 +28,26 @@ class PDFGenerator:
             Absolute path to the compiled PDF file.
 
         Raises:
-            FileNotFoundError: If pdflatex is not installed.
-            RuntimeError: If pdflatex compilation fails.
+            FileNotFoundError: If pdflatex/xelatex is not installed.
+            RuntimeError: If compilation fails.
         """
-        # Check pdflatex availability
-        if not shutil.which("pdflatex"):
+        # Detect if Chinese template (uses xeCJK) → needs xelatex
+        use_xelatex = "xeCJK" in content_tex or "\\setCJKmainfont" in content_tex
+        compiler = "xelatex" if use_xelatex else "pdflatex"
+
+        # PM2/launchd processes often lack /Library/TeX/texbin in PATH,
+        # so fall back to the standard MacTeX install location.
+        compiler_path = shutil.which(compiler)
+        if not compiler_path:
+            for candidate in (f"/Library/TeX/texbin/{compiler}", f"/usr/local/texlive/bin/{compiler}"):
+                if os.path.exists(candidate):
+                    compiler_path = candidate
+                    break
+        if not compiler_path:
             raise FileNotFoundError(
-                "pdflatex not found. Install with: brew install --cask mactex-no-gui"
+                f"{compiler} not found. Install with: brew install --cask mactex-no-gui"
             )
+        compiler = compiler_path
 
         # Create temp directory for compilation
         tmp_dir = tempfile.mkdtemp(prefix="loom_resumes_")
@@ -56,10 +68,10 @@ class PDFGenerator:
             with open(tex_file, "w", encoding="utf-8") as f:
                 f.write(content_tex)
 
-            # Run pdflatex twice (resolve cross-references)
+            # Run compiler twice (resolve cross-references)
             for pass_num in range(2):
                 proc = await asyncio.create_subprocess_exec(
-                    "pdflatex",
+                    compiler,
                     "-interaction=nonstopmode",
                     f"-output-directory={tmp_dir}",
                     tex_file,
@@ -72,22 +84,22 @@ class PDFGenerator:
                     log_file = os.path.join(tmp_dir, "resume.log")
                     error_lines = ""
                     if os.path.exists(log_file):
-                        with open(log_file, "r") as f:
+                        with open(log_file, "r", errors="replace") as f:
                             all_lines = f.readlines()
                             error_lines = "".join(all_lines[-20:])
                     if loom_log:
                         import asyncio as _aio
                         _aio.create_task(loom_log.error("system", "pdf.compile.failed",
-                            f"pdflatex failed (pass {pass_num + 1})",
+                            f"{compiler} failed (pass {pass_num + 1})",
                             error_tail=error_lines[:500]))
                     raise RuntimeError(
-                        f"pdflatex compilation failed (pass {pass_num + 1}):\n{error_lines}"
+                        f"{compiler} compilation failed (pass {pass_num + 1}):\n{error_lines}"
                     )
 
             # Verify PDF was created
             pdf_source = os.path.join(tmp_dir, "resume.pdf")
             if not os.path.exists(pdf_source):
-                raise RuntimeError("pdflatex completed but no PDF was generated")
+                raise RuntimeError(f"{compiler} completed but no PDF was generated")
 
             # Determine output path
             if not output_path:

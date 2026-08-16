@@ -1,0 +1,131 @@
+{#
+  A page for a business you ring rather than browse.
+
+  The old version of this direction was a 12-column grid with an electric
+  accent and 12px-radius cards, which is the agency look — and `suits`
+  included "trade", so plumbers were being shown an agency page. The grid
+  encoded nothing true about the business; it was structure as decoration.
+
+  What is true about a plumber's page is that someone arrives at it in a
+  hurry, on a phone, holding something with one hand, and needs exactly two
+  facts: do you come to my suburb, and what is the number. So the number is
+  the largest type here and it never leaves the screen — bottom-fixed on a
+  phone where the thumb already is, top-sticky on a desktop.
+
+  Everything else is deliberately plain. The boldness is spent once.
+
+  The type pairing is the other idea: a condensed display against Verdana,
+  which is the widest and most legible sans present on every platform a small
+  business owner's customer might be holding. Condensed against wide is a
+  real contrast; -apple-system against -apple-system, which is what this
+  direction had before, is not a pairing at all.
+
+  This is still default_direction, so it has to hold up for a business nobody
+  categorised. A sticky phone number degrades sanely for almost anything;
+  without a phone the bar carries the address instead.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{font-family:Verdana,'Lucida Grande','DejaVu Sans',sans-serif;font-size:17px}
+{# Room for the fixed bar so it never covers the footer. #}
+@media(max-width:819px){body{padding-bottom:5.5rem}}
+
+.callout{background:{{ palette.accent }};color:{{ palette.paper }};
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem;
+  padding:.85rem 1.5rem;z-index:10}
+.callout .label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  opacity:.85;font-family:Menlo,Consolas,monospace}
+.callout .number{font-family:'Avenir Next Condensed','Futura Condensed',
+  'Arial Narrow',Helvetica,sans-serif;
+  font-size:clamp(1.9rem,7vw,2.6rem);font-weight:600;letter-spacing:.01em;
+  line-height:1;text-decoration:none}
+@media(max-width:819px){
+  .callout{position:fixed;left:0;right:0;bottom:0;justify-content:center;
+    box-shadow:0 -1px 12px rgba(0,0,0,.18)}
+}
+@media(min-width:820px){
+  .callout{position:sticky;top:0;justify-content:flex-end;
+    padding-right:max(1.5rem,calc((100vw - 66rem)/2))}
+}
+
+.hero{padding:4rem 1.5rem 2.5rem;display:grid;gap:2rem}
+@media(min-width:820px){.hero{grid-template-columns:7fr 5fr;align-items:end}}
+h1{font-family:'Avenir Next Condensed','Futura Condensed','Arial Narrow',
+  Helvetica,sans-serif;
+  font-size:clamp(2.6rem,9vw,5.5rem);font-weight:600;letter-spacing:0;
+  line-height:.98;margin:0;text-transform:uppercase}
+.lede{margin-top:1.2rem;font-size:1rem;line-height:1.6;max-width:34rem;opacity:.8}
+
+h2{font-family:Menlo,Consolas,monospace;font-size:.7rem;text-transform:uppercase;
+  letter-spacing:.16em;opacity:.5;margin:0 0 1.4rem}
+h3{font-family:'Avenir Next Condensed','Futura Condensed','Arial Narrow',
+  Helvetica,sans-serif;
+  font-size:1.5rem;font-weight:600;text-transform:uppercase;margin:2rem 0 .6rem}
+.band{padding:3.5rem 0;border-top:1px solid rgba(127,127,127,.22)}
+
+{# Data set as data. Hours and service areas are the two things worth
+   checking before ringing, so they get the utility face rather than prose. #}
+.facts-grid{display:grid;gap:2.5rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+.facts p{font-family:Menlo,Consolas,monospace;font-size:.95rem;line-height:1.75}
+
+{# No cards, no radius, no borders anywhere — see the note above. #}
+.item{border-bottom:1px solid rgba(127,127,127,.16)}
+{# The base sheet colours prices with the accent. Here the accent means "this
+   is the thing you press", so a price wearing it dilutes the one signal the
+   page has. Prices go back to ink. #}
+.item .price{color:inherit;opacity:.75}
+.hero-img{max-height:26rem;object-fit:cover}
+.gallery{gap:.5rem}
+{% endblock %}
+
+{% block menu %}
+{# "Menu" is the base's word for this section, which is right for a cafe and
+   wrong for a plumber — and wrong again for whatever unmatched trade lands
+   here via default_direction. "Services" covers all three. #}
+  {% if menu %}
+  <section class="band">
+    <h2>Services</h2>
+    {% for group, items in menu_groups %}
+      {% if group %}<h3>{{ group }}</h3>{% endif %}
+      {% for item in items %}
+      <div class="item">
+        <span class="name">{{ item.name }}
+          {% if item.description %}<span class="desc">{{ item.description }}</span>{% endif %}
+        </span>
+        <span class="dots"></span>
+        <span class="price">{{ item.price or "—" }}</span>
+      </div>
+      {% endfor %}
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="band">
+    <h2>Services</h2>
+    <span class="sample">{{ sample_note }}</span>
+    <p>{{ menu_sample }}</p>
+  </section>
+  {% endif %}
+{% endblock %}
+
+{% block hero %}
+{% if phone %}
+<div class="callout">
+  <span class="label">Call</span>
+  <a class="number" href="tel:{{ phone_href }}">{{ phone }}</a>
+</div>
+{% elif address %}
+<div class="callout">
+  <span class="label">Find us</span>
+  <span class="number">{{ address }}</span>
+</div>
+{% endif %}
+<header class="hero">
+  <div class="hero-text">
+    <h1>{{ business }}</h1>
+    {% if about %}<p class="lede">{{ about }}</p>{% endif %}
+  </div>
+  {% if images %}<img class="hero-img" src="{{ images[0] }}" alt="">{% endif %}
+  {% if stock_used %}<p class="credit">{{ stock_note }}</p>{% endif %}
+</header>
+{% endblock %}

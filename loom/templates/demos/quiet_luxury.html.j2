@@ -1,0 +1,40 @@
+{#
+  High-contrast serif, near-monochrome, symmetrical — the one direction where
+  centring is right.
+
+  The signature is the mat: a hairline frame fixed just inside the four edges
+  of the viewport, so the page reads as something mounted and framed rather
+  than something scrolled. It is borrowed from gallery mounts and engraved
+  invitations, which is exactly the world this direction is selling to.
+
+  It is fixed rather than drawn around the content, so it holds its position
+  down the whole page. pointer-events are off so it can never intercept a tap
+  on the phone number underneath it.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#f4f2ee;color:#26262a;font-family:Optima,Candara,'Gill Sans',sans-serif}
+body::before{content:"";position:fixed;inset:.75rem;z-index:5;
+  border:1px solid rgba(38,38,42,.28);pointer-events:none}
+@media(min-width:820px){body::before{inset:1.5rem}}
+{# The frame must not sit on top of the words. #}
+.wrap{padding:0 2.5rem}
+.hero{padding:5rem 2.5rem 3rem;text-align:center}
+footer,.closing{padding-left:2.5rem;padding-right:2.5rem}
+h1{font-family:Didot,'Bodoni MT','Playfair Display',Georgia,serif;
+  font-size:clamp(2.4rem,8vw,4.8rem);font-weight:400;letter-spacing:.02em;
+  word-spacing:.5em;margin:0;line-height:1.1}
+.lede{margin:1.6rem auto 0;max-width:30rem;font-size:.98rem;opacity:.75}
+.hero-img{margin:2.5rem auto 0;max-width:min(48rem,100%);filter:saturate(.6)}
+.band{text-align:center}
+h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.28em;font-weight:400;
+  margin:0 auto 1.6rem;padding:.7rem 0;max-width:60%;
+  border-top:1px solid rgba(0,0,0,.2);border-bottom:1px solid rgba(0,0,0,.2)}
+h3{font-family:Didot,Georgia,serif;font-size:1.15rem;font-weight:400;
+  letter-spacing:.06em;margin:2rem 0 .7rem}
+.item{max-width:30rem;margin:0 auto;text-align:left;font-size:.95rem}
+.item .dots{border-bottom-style:solid;opacity:.2}
+.gallery img{filter:saturate(.6)}
+.facts-grid{display:grid;gap:2.5rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+{% endblock %}
