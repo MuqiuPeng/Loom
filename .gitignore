@@ -47,10 +47,12 @@ htmlcov/
 .env
 .env.local
 .env.*.local
-# Timestamped backups written next to .env — full copies, secrets and all.
-# Neither `.env` nor `*.bak` matches `.env.bak.1786691251`, so they sat
-# untracked and one `git add -A` away from being published.
-.env.bak*
+# Any copy of an env file, however it is suffixed — these are full copies,
+# secrets and all. Neither `.env` nor `*.bak` matched `.env.bak.1786691251`,
+# so those sat untracked and one `git add -A` away from being published.
+.env.*
+!.env.example
+dashboard/.env.local*
 *.pem
 credentials.json
 

@@ -26,15 +26,19 @@ module.exports = {
       // pm2's boot PATH and crashes. anaconda base has uvicorn + the loom package.
       script: "/Users/guanshunpeng/anaconda3/bin/python",
       args: "-m uvicorn loom.api:app --host 0.0.0.0 --port 8001 --timeout-keep-alive 300",
-      // DATABASE_URL deliberately NOT set here. load_dotenv() does not
-      // override variables that already exist in the environment, so anything
-      // pm2 injects silently wins over .env — which is how the app kept
-      // talking to the old local Postgres for a while after the database was
-      // migrated to Supabase, with no error to show for it. Let .env be the
-      // single source of truth.
+      // Secrets deliberately NOT set here — this file is committed, and the
+      // repository is public. LOOM_API_KEY used to be inlined below and was
+      // readable on GitHub, which is the whole of the API's authentication;
+      // it has since been rotated and moved to .env.
+      //
+      // The same reasoning already applied to DATABASE_URL: load_dotenv() does
+      // not override variables that already exist in the environment, so
+      // anything pm2 injects silently wins over .env — which is how the app
+      // kept talking to the old local Postgres for a while after the database
+      // was migrated to Supabase, with no error to show for it. Let .env be
+      // the single source of truth for anything secret.
       env: {
         LOOM_API_PORT: "8001",
-        LOOM_API_KEY: "eYx0uTqgen2PQsJKo5QeDEMGOrmIUmDvYfI1xitp3C8",
       },
       ...guards,
     },
