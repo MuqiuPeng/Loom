@@ -130,7 +130,6 @@ export default function ScoutWorkspace({ kind }: { kind: Lens }) {
     api.scout.areas().then((r) => setCountries(r.countries)).catch(() => {});
   }, []);
 
-  const chosenCountry = countries.find((c) => c.code === country);
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
@@ -334,7 +333,7 @@ export default function ScoutWorkspace({ kind }: { kind: Lens }) {
               <option value="">Auto (from area)</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code} disabled={!c.available}>
-                  {c.name} ({c.areas}){c.available ? "" : " — no provider"}
+                  {c.name} ({c.areas}){c.available ? "" : " — not wired up"}
                 </option>
               ))}
             </select>
@@ -374,16 +373,20 @@ export default function ScoutWorkspace({ kind }: { kind: Lens }) {
             </span>
           )}
         </div>
-      </form>
 
-      {chosenCountry && !chosenCountry.available && (
-        <div className="mb-4 p-3 rounded-md bg-amber-50 border border-amber-100 text-sm text-amber-800">
-          <strong>{chosenCountry.name}</strong> has {chosenCountry.areas} researched
-          areas but no map provider yet — {chosenCountry.detail}. Searching it
-          would have to fall back to a provider that cannot answer for this
-          market, so it refuses instead.
-        </div>
-      )}
+        {/* Named rather than hidden. The areas behind these markets are
+            researched and still worth having; what is missing is a map
+            provider that can answer for them. */}
+        {countries.some((c) => !c.available) && (
+          <p className="text-xs text-gray-400">
+            Awaiting a map provider:{" "}
+            {countries
+              .filter((c) => !c.available)
+              .map((c) => `${c.name} (${c.areas} areas, needs ${c.provider})`)
+              .join(", ")}
+          </p>
+        )}
+      </form>
 
       {error && (
         <div className="mb-6 p-3 rounded-md bg-red-50 border border-red-100 text-sm text-red-700">

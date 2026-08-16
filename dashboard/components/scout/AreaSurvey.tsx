@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import type { AreaResult, AreaSuggestion } from "@/lib/types";
+import type { AreaResult, AreaSuggestion, ScoutCountry } from "@/lib/types";
 
 /** Which town is worth working, answered with evidence.
  *
@@ -19,6 +19,7 @@ export default function AreaSurvey({
   const [query, setQuery] = useState("cafe");
   const [limit, setLimit] = useState(20);
   const [suggestions, setSuggestions] = useState<AreaSuggestion[]>([]);
+  const [countries, setCountries] = useState<ScoutCountry[]>([]);
   const [avoid, setAvoid] = useState<{ note?: string; patterns?: string[] }>({});
   const [chosen, setChosen] = useState<string[]>([]);
   const [results, setResults] = useState<AreaResult[]>([]);
@@ -30,22 +31,45 @@ export default function AreaSurvey({
       .areas()
       .then((res) => {
         setSuggestions(res.areas);
+        setCountries(res.countries || []);
         setAvoid(res.avoid || {});
         setChosen(res.default);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
+  /** Markets whose map provider does not exist yet.
+   *
+   * Their areas stay on screen rather than being hidden: the research is the
+   * work, and it holds whether or not the integration has been written. They
+   * are just not selectable, because a survey of them would fail at the first
+   * request — Google cannot answer for mainland China, and falling back to it
+   * would return results that look fine and mean nothing. */
+  const blocked = useMemo(() => {
+    const out = new Map<string, ScoutCountry>();
+    for (const c of countries) if (!c.available) out.set(c.code, c);
+    return out;
+  }, [countries]);
+
+  const unavailable = (s: AreaSuggestion) => blocked.has(s.country ?? "");
+
   const byRegion = useMemo(() => {
     const groups: Record<string, AreaSuggestion[]> = {};
-    for (const s of suggestions) (groups[s.region] ||= []).push(s);
+    for (const s of suggestions) {
+      // Several countries now, so a bare "NSW" or "浙江" is ambiguous.
+      const label = s.country_name ? `${s.country_name} · ${s.region}` : s.region;
+      (groups[label] ||= []).push(s);
+    }
     return groups;
   }, [suggestions]);
 
-  const toggle = (area: string) =>
+  const toggle = (area: string) => {
+    const entry = suggestions.find((s) => s.area === area);
+    if (entry && unavailable(entry)) return;
     setChosen((prev) =>
       prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
     );
+  };
 
   async function run() {
     if (!chosen.length) return;
@@ -105,13 +129,23 @@ export default function AreaSurvey({
               <div className="flex flex-wrap gap-1.5">
                 {entries.map((s) => {
                   const on = chosen.includes(s.area);
+                  const off = unavailable(s);
                   return (
                     <button
                       key={s.area}
                       onClick={() => toggle(s.area)}
-                      title={s.note}
+                      disabled={off}
+                      title={
+                        off
+                          ? `${s.note} — not searchable yet: ${
+                              blocked.get(s.country ?? "")?.provider
+                            } is not implemented`
+                          : s.note
+                      }
                       className={`px-2.5 py-1 rounded text-xs border transition-colors ${
-                        on
+                        off
+                          ? "border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed line-through"
+                          : on
                           ? "bg-indigo-50 border-indigo-300 text-indigo-700"
                           : "border-gray-200 text-gray-600 hover:bg-gray-50"
                       }`}
