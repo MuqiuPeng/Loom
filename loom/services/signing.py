@@ -16,7 +16,7 @@ import hmac
 import os
 
 
-class SigningNotConfigured(RuntimeError):
+class SigningNotConfiguredError(RuntimeError):
     """Raised when LOOM_SIGNING_SECRET is missing.
 
     Deliberately not falling back to LOOM_API_KEY: that fallback is exactly
@@ -28,7 +28,7 @@ class SigningNotConfigured(RuntimeError):
 def _secret() -> str:
     secret = os.environ.get("LOOM_SIGNING_SECRET", "")
     if not secret:
-        raise SigningNotConfigured(
+        raise SigningNotConfiguredError(
             "LOOM_SIGNING_SECRET is not set. Generate one "
             "(`python -c 'import secrets;print(secrets.token_urlsafe(32))'`), "
             "put it in .env, and restart. Changing it invalidates every "

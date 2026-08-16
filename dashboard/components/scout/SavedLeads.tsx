@@ -5,7 +5,7 @@ import LeadDetail, { STATUSES, type Stage } from "@/components/scout/LeadDetail"
 import { api } from "@/lib/api";
 import { useCollapseNavWhile } from "@/lib/nav-collapse";
 import { useDismissOnOutsideClick } from "@/lib/use-dismiss";
-import type { LeadStatus, ScoutLead } from "@/lib/types";
+import type { LeadKind, LeadStatus, ScoutLead } from "@/lib/types";
 
 const FILTERS = ["all", ...STATUSES.map((s) => s.value)] as const;
 
@@ -42,7 +42,13 @@ function Progress({ lead }: { lead: ScoutLead }) {
   );
 }
 
-export default function SavedLeads() {
+/** `kind` decides both what is listed and what can be done with it.
+ *
+ * The outreach stages — harvest, plan, demo, draft — are commercial work and
+ * only exist for freelance leads. The API refuses them for a job lead with a
+ * 409; hiding them here means you never get that far. */
+export default function SavedLeads({ kind }: { kind: LeadKind }) {
+  const isFreelance = kind === "freelance";
   const [filter, setFilter] = useState<string>("all");
   const [leads, setLeads] = useState<ScoutLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,7 @@ export default function SavedLeads() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.scout.listLeads(filter);
+      const res = await api.scout.listLeads(kind, filter);
       setLeads(res.leads);
       setError(null);
     } catch (err) {

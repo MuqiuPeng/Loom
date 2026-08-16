@@ -455,15 +455,30 @@ class ScoutLeadModel(Base):
     """
 
     __tablename__ = "scout_leads"
-    # One row per business *per user* — re-scouting the same area updates
-    # rather than duplicates, but two accounts working the same suburb keep
-    # their own status, notes and outreach history.
+    # One row per business, per user, per campaign. Re-scouting the same area
+    # updates rather than duplicates; two accounts working the same suburb keep
+    # their own status and outreach history; and the same business can be a
+    # job-hunt lead and a freelance lead at once without the two colliding.
+    # `provider` is in the key because a place_id only means anything relative
+    # to the map service that issued it.
     __table_args__ = (
-        UniqueConstraint("user_id", "place_id", name="uq_scout_leads_user_place"),
+        UniqueConstraint(
+            "user_id", "kind", "provider", "place_id",
+            name="uq_scout_leads_user_kind_place",
+        ),
     )
 
     id: Mapped[str] = mapped_column(Uuid, primary_key=True, default=uuid4)
     user_id: Mapped[str] = mapped_column(String(100), default="local", index=True)
+
+    # Which campaign this lead belongs to, and the reason the two are separate
+    # rows rather than a display filter: they are legally different. A message
+    # asking about employment is not a commercial electronic message; pitching
+    # freelance work is, and needs consent, sender identification and a working
+    # opt-out. The outreach pipeline refuses anything that is not "freelance".
+    kind: Mapped[str] = mapped_column(String(20), default="freelance", index=True)
+
+    provider: Mapped[str] = mapped_column(String(20), default="google", index=True)
     place_id: Mapped[str] = mapped_column(String(255), index=True)
 
     # Outreach workflow

@@ -16,8 +16,12 @@ const MAIN_NAV = [
     ],
   },
   {
+    // Two entries, not one page with a toggle. Pitching freelance work is a
+    // commercial electronic message and asking about a job is not, so the two
+    // never share a lead list — or an email.
     section: "Outreach",
     items: [
+      { label: "Freelance", href: "/freelance" },
       { label: "Company Scout", href: "/scout" },
     ],
   },

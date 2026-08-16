@@ -13,9 +13,15 @@
     "table tonight, which is a problem worth paying to fix.",
     "",
     "Edit freely. `note` is the reason to be there, not decoration — if you",
-    "can't write one for a place, that is a signal in itself."
+    "can't write one for a place, that is a signal in itself.",
+    "",
+    "Structure: countries → regions → areas. The country layer is not",
+    "decoration either. It carries `provider`, because which map service can",
+    "answer a query is a property of where you are asking about: Google Maps",
+    "is unusable in mainland China, and Amap is useless for Katoomba. A",
+    "country with a provider that isn't implemented yet is still worth listing",
+    "— the areas are the research, and they outlive the integration."
   ],
-
   "avoid": {
     "note": "Not worth the calls, for opposite reasons at each end.",
     "patterns": [
@@ -25,49 +31,121 @@
       "Anywhere you cannot name a reason a stranger would search before choosing"
     ]
   },
-
-  "regions": {
-    "NSW": [
-      { "area": "Byron Bay NSW", "note": "Heavy visitor traffic, design-conscious operators, high spend" },
-      { "area": "Katoomba NSW", "note": "Blue Mountains day-trippers decide on the street" },
-      { "area": "Huskisson NSW", "note": "Jervis Bay holiday trade, short season so the shopfront matters" },
-      { "area": "Nelson Bay NSW", "note": "Port Stephens tourism, lots of independent operators" },
-      { "area": "Kiama NSW", "note": "Coastal day trips from Sydney and Wollongong" },
-      { "area": "Bowral NSW", "note": "Southern Highlands weekenders, older money, pride purchases" },
-      { "area": "Mudgee NSW", "note": "Wine region — cellar doors and restaurants that need to look the part" }
-    ],
-    "VIC": [
-      { "area": "Lorne VIC", "note": "Great Ocean Road stop, seasonal and entirely visitor-led" },
-      { "area": "Apollo Bay VIC", "note": "Same road, smaller operators, weaker web presence" },
-      { "area": "Daylesford VIC", "note": "Spa and food weekenders, high expectations of presentation" },
-      { "area": "Bright VIC", "note": "Alpine tourism, two strong seasons" },
-      { "area": "Queenscliff VIC", "note": "Ferry traffic and day visitors" }
-    ],
-    "QLD": [
-      { "area": "Port Douglas QLD", "note": "Reef tourism, international visitors, strong budgets" },
-      { "area": "Airlie Beach QLD", "note": "Whitsundays gateway, decision made on the phone at the marina" },
-      { "area": "Noosa Heads QLD", "note": "Affluent visitors, design matters to the operators" },
-      { "area": "Montville QLD", "note": "Hinterland day trips, small owner-run businesses" }
-    ],
-    "WA": [
-      { "area": "Margaret River WA", "note": "Wine and food touring, dense with independents" },
-      { "area": "Dunsborough WA", "note": "Same region, smaller and less served" }
-    ],
-    "SA": [
-      { "area": "Hahndorf SA", "note": "Adelaide Hills day trips, very high foot traffic" },
-      { "area": "Victor Harbor SA", "note": "Fleurieu holiday trade" }
-    ],
-    "TAS": [
-      { "area": "Strahan TAS", "note": "Remote, visitor-dependent, often poorly served digitally" },
-      { "area": "Bicheno TAS", "note": "East coast touring route" }
-    ]
+  "countries": {
+    "AU": {
+      "name": "Australia",
+      "provider": "google",
+      "language": "en",
+      "regions": {
+        "NSW": [
+          { "area": "Byron Bay NSW", "note": "Heavy visitor traffic, design-conscious operators, high spend" },
+          { "area": "Katoomba NSW", "note": "Day-trippers from Sydney decide on the street; many sites predate mobile" },
+          { "area": "Huskisson NSW", "note": "Jervis Bay holiday trade, short season so the site does the selling" },
+          { "area": "Nelson Bay NSW", "note": "Port Stephens tourism, older operators, thin web presence" },
+          { "area": "Kiama NSW", "note": "Coastal day-trip town, strong footfall, uneven sites" },
+          { "area": "Bowral NSW", "note": "Southern Highlands weekenders, high spend, presentation matters" },
+          { "area": "Berry NSW", "note": "Weekend stopover on the south coast run; boutique retail and food" },
+          { "area": "Orange NSW", "note": "Wine and food destination, cellar doors booking direct" },
+          { "area": "Mudgee NSW", "note": "Wine region weekenders; many cellar doors on social-only presence" },
+          { "area": "Port Macquarie NSW", "note": "Holiday coast, mixed-quality sites, year-round trade" },
+          { "area": "Thirroul NSW", "note": "Northern Illawarra strip, growing visitor trade from Sydney" }
+        ],
+        "VIC": [
+          { "area": "Lorne VIC", "note": "Great Ocean Road stop, decisions made on the phone at the kerb" },
+          { "area": "Apollo Bay VIC", "note": "Same road, smaller operators, weaker sites" },
+          { "area": "Daylesford VIC", "note": "Spa-town weekenders, bookings made ahead online" },
+          { "area": "Bright VIC", "note": "Alpine seasonal trade, two peaks a year to get right" },
+          { "area": "Queenscliff VIC", "note": "Ferry arrivals choosing lunch from the boat" },
+          { "area": "Torquay VIC", "note": "Surf coast gateway, high summer turnover" },
+          { "area": "Halls Gap VIC", "note": "Grampians base town, near-total visitor dependence" },
+          { "area": "Beechworth VIC", "note": "Heritage day-trip town, food-led, presentation sells" },
+          { "area": "Rye VIC", "note": "Mornington Peninsula summer strip, seasonal operators" }
+        ],
+        "QLD": [
+          { "area": "Port Douglas QLD", "note": "International visitors, high spend, English-language search" },
+          { "area": "Airlie Beach QLD", "note": "Whitsundays gateway, booking-driven, competitive" },
+          { "area": "Noosa Heads QLD", "note": "Design-aware market; a dated site stands out badly" },
+          { "area": "Montville QLD", "note": "Hinterland day-trip village, small operators" },
+          { "area": "Palm Cove QLD", "note": "Resort strip north of Cairns, visitor-only trade" },
+          { "area": "Yeppoon QLD", "note": "Capricorn coast, growing tourism, thin web presence" },
+          { "area": "Maleny QLD", "note": "Sunshine Coast hinterland, artisan food and retail" }
+        ],
+        "WA": [
+          { "area": "Margaret River WA", "note": "Wine region, cellar doors selling direct" },
+          { "area": "Dunsborough WA", "note": "Same region, more casual food trade" },
+          { "area": "Busselton WA", "note": "Jetty visitors, family trade, mixed site quality" },
+          { "area": "Denmark WA", "note": "Great Southern food and wine, small owner-run operators" },
+          { "area": "Exmouth WA", "note": "Ningaloo tourism, remote, bookings entirely online" }
+        ],
+        "SA": [
+          { "area": "Hahndorf SA", "note": "Adelaide Hills day-trip village, dense visitor traffic" },
+          { "area": "Victor Harbor SA", "note": "Fleurieu holiday town, older operators" },
+          { "area": "McLaren Vale SA", "note": "Wine region, cellar doors booking direct" },
+          { "area": "Robe SA", "note": "Limestone coast summer town, short intense season" }
+        ],
+        "TAS": [
+          { "area": "Strahan TAS", "note": "Remote west coast, visitors plan entirely online" },
+          { "area": "Bicheno TAS", "note": "East coast stopover, small operators" },
+          { "area": "Cradle Mountain TAS", "note": "Park gateway, bookings made well ahead" },
+          { "area": "Stanley TAS", "note": "North-west heritage town, near-total visitor dependence" }
+        ],
+        "NT": [
+          { "area": "Katherine NT", "note": "Stopover on the Stuart Highway, tour-led trade" },
+          { "area": "Yulara NT", "note": "Uluru resort town, international visitors, planned ahead" }
+        ]
+      }
+    },
+    "NZ": {
+      "name": "New Zealand",
+      "provider": "google",
+      "language": "en",
+      "regions": {
+        "South Island": [
+          { "area": "Wanaka, New Zealand", "note": "Alpine resort town, two seasons, international visitors" },
+          { "area": "Te Anau, New Zealand", "note": "Fiordland gateway, trips booked before arrival" },
+          { "area": "Akaroa, New Zealand", "note": "Cruise-ship day trade, decisions made on the spot" },
+          { "area": "Hokitika, New Zealand", "note": "West coast stopover, small owner-run operators" }
+        ],
+        "North Island": [
+          { "area": "Russell, New Zealand", "note": "Bay of Islands, holiday trade, thin web presence" },
+          { "area": "Raglan, New Zealand", "note": "Surf town, young visitor market, social-first operators" },
+          { "area": "Martinborough, New Zealand", "note": "Wine village, cellar doors selling direct" }
+        ]
+      }
+    },
+    "CN": {
+      "name": "China",
+      "provider": "amap",
+      "language": "zh",
+      "_provider_note": "Not implemented. Google Maps cannot serve mainland China; add an Amap or Baidu provider in loom/services/places/ and register it with countries=(\"CN\",). The areas below are research and stand on their own until then.",
+      "regions": {
+        "浙江": [
+          { "area": "乌镇 浙江", "note": "古镇景区，游客到场前在手机上比选民宿和餐饮" },
+          { "area": "莫干山 浙江", "note": "民宿高地，设计意识强，线上门面直接影响成交" },
+          { "area": "西塘 浙江", "note": "周末客流密集，商户以个体为主" }
+        ],
+        "云南": [
+          { "area": "大理 云南", "note": "长住与短途混合客群，民宿与咖啡店密度高" },
+          { "area": "丽江 云南", "note": "全年游客，商户线上呈现参差" },
+          { "area": "香格里拉 云南", "note": "行程需提前规划，线上信息决定是否被选中" }
+        ],
+        "福建": [
+          { "area": "厦门 鼓浪屿 福建", "note": "岛上商户面向一次性游客，复购低、门面权重高" },
+          { "area": "武夷山 福建", "note": "茶旅结合，商户多为家庭经营" }
+        ]
+      }
+    }
   },
-
   "default_survey": [
     "Katoomba NSW",
     "Kiama NSW",
     "Huskisson NSW",
     "Nelson Bay NSW",
-    "Bowral NSW"
+    "Bowral NSW",
+    "Berry NSW",
+    "Lorne VIC",
+    "Daylesford VIC",
+    "Montville QLD",
+    "Hahndorf SA"
   ]
 }

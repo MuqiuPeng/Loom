@@ -152,6 +152,10 @@ export default function LeadDetail({
         </section>
 
         {/* Pipeline */}
+        {/* Commercial work, and only freelance leads get it. The API answers
+            409 for a job lead; not rendering the buttons means you never have
+            to find that out by clicking. */}
+        {lead.kind === "freelance" && (
         <section>
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
             Pipeline
@@ -228,6 +232,7 @@ export default function LeadDetail({
           )}
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </section>
+        )}
 
         {/* The proposal — reviewed before anything expensive runs */}
         {lead.demo_plan && (

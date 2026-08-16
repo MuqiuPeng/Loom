@@ -14,6 +14,9 @@ import type {
   Harvest,
   ScoutLead,
   ScoutStats,
+  ScoutCountry,
+  Industry,
+  LeadKind,
 } from "./types";
 
 const API_BASE = "/api";
@@ -205,20 +208,28 @@ export const api = {
 
   scout: {
     search: (data: {
-      query: string;
+      query?: string;
+      industries?: string[];
       near?: string;
+      country?: string;
       radius_m?: number;
       limit?: number;
       enrich?: boolean;
     }) =>
-      request<{ stats: ScoutStats; candidates: ScoutCandidate[] }>(
-        "/scout/search",
-        { method: "POST", body: JSON.stringify(data) }
-      ),
+      request<{
+        stats: ScoutStats;
+        queries: string[];
+        country: string | null;
+        candidates: ScoutCandidate[];
+      }>("/scout/search", { method: "POST", body: JSON.stringify(data) }),
+
+    industries: () =>
+      request<{ industries: Industry[] }>("/scout/industries"),
 
     areas: () =>
       request<{
         areas: AreaSuggestion[];
+        countries: ScoutCountry[];
         avoid: { note?: string; patterns?: string[] };
         default: string[];
       }>("/scout/areas"),
@@ -229,15 +240,20 @@ export const api = {
         body: JSON.stringify({ query, areas, limit }),
       }),
 
-    saveLeads: (candidates: Record<string, unknown>[]) =>
+    // `kind` is required rather than defaulted: a lead saved under the wrong
+    // campaign is the one that later receives the wrong kind of email.
+    saveLeads: (candidates: Record<string, unknown>[], kind: LeadKind) =>
       request<{ created: number; updated: number }>("/scout/leads", {
         method: "POST",
-        body: JSON.stringify({ candidates }),
+        body: JSON.stringify({ candidates, kind }),
       }),
 
-    listLeads: (status?: string) => {
-      const qs = status && status !== "all" ? `?status=${status}` : "";
-      return request<{ total: number; leads: ScoutLead[] }>(`/scout/leads${qs}`);
+    listLeads: (kind: LeadKind, status?: string) => {
+      const params = new URLSearchParams({ kind });
+      if (status && status !== "all") params.set("status", status);
+      return request<{ total: number; leads: ScoutLead[] }>(
+        `/scout/leads?${params}`
+      );
     },
 
     updateLead: (

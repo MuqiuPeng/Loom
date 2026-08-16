@@ -220,6 +220,9 @@ export interface SiteAudit {
 }
 
 export interface ScoutCandidate {
+  /** Which map service found it. A place_id only means something relative
+   * to the provider that issued it, so the pair identifies the business. */
+  provider: string;
   place_id: string;
   google_name: string;
   google_address: string;
@@ -248,6 +251,8 @@ export type LeadStatus = "new" | "contacted" | "replied" | "won" | "dead";
 export interface ScoutLead {
   id: string;
   place_id: string;
+  kind: LeadKind;
+  provider: string;
   status: LeadStatus;
   notes: string | null;
   site_url: string | null;
@@ -301,7 +306,42 @@ export interface AreaSuggestion {
   area: string;
   note: string;
   region: string;
+  /** ISO-3166-1 alpha-2. Decides which map provider answers for this area. */
+  country?: string;
+  country_name?: string;
+  provider?: string;
+  language?: string | null;
 }
+
+/** A market in the area config, and whether it can actually be searched.
+ *
+ * `available: false` is not an error — a country whose provider is not
+ * implemented yet still carries its researched areas. Google cannot serve
+ * mainland China, so CN waits on an Amap or Baidu provider. */
+export interface ScoutCountry {
+  code: string;
+  name: string;
+  provider: string;
+  available: boolean;
+  detail: string | null;
+  areas: number;
+}
+
+/** A curated trade to search for, instead of whatever comes to mind. */
+export interface Industry {
+  key: string;
+  label: string;
+  queries: string[];
+  visitor_led: boolean;
+  why: string;
+}
+
+/** Which campaign a lead belongs to.
+ *
+ * Not a display filter: pitching freelance work is a commercial electronic
+ * message and a job enquiry is not, so they are separate rows and only
+ * `freelance` leads may enter the outreach pipeline. */
+export type LeadKind = "freelance" | "job";
 
 /** What one area looks like once scanned — the answer to 'work here?'. */
 export interface AreaResult {

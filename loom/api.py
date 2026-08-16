@@ -1630,12 +1630,12 @@ async def download_resume_pdf(
 
     # This route is exempt from AuthMiddleware: require either a valid
     # per-artifact signature (Notion links) or the Bearer key.
-    from loom.services.signing import SigningNotConfigured, resume_pdf_sig
+    from loom.services.signing import SigningNotConfiguredError, resume_pdf_sig
     auth = (request.headers.get("authorization", "") if request else "")
     bearer_ok = auth.startswith("Bearer ") and auth[7:] == LOOM_API_KEY
     try:
         sig_ok = bool(sig) and _hmac.compare_digest(sig, resume_pdf_sig(str(resume_id)))
-    except SigningNotConfigured:
+    except SigningNotConfiguredError:
         # No secret configured means no link can be valid — 401 like any other
         # bad signature, rather than a 500 that reads like the PDF is broken.
         logger.warning("Signed PDF link rejected: LOOM_SIGNING_SECRET is not set")
@@ -1726,8 +1726,16 @@ async def log_stats(user_id: str = CurrentUser):
 
 
 class ScoutRequest(BaseModel):
-    query: str
+    # Free text still works. `industries` are keys from
+    # config/scout_industries.json, each expanding to several provider
+    # queries — an unknown key falls through as a literal search term.
+    query: str = ""
+    industries: list[str] = []
     near: str | None = None
+    # ISO-3166-1 alpha-2. Decides which map provider answers: Google cannot
+    # serve mainland China, and a search there must fail rather than quietly
+    # return nothing useful.
+    country: str | None = None
     radius_m: int = 5000
     limit: int = 20
     enrich: bool = True
@@ -1743,21 +1751,42 @@ async def scout_search(request: ScoutRequest) -> dict:
     The response carries Google-sourced fields for display only — see
     loom/services/company_scout.py for what may be persisted.
     """
+    from loom.services.area_survey import areas_config, country_of
     from loom.services.company_scout import scout, summarise
     from loom.services.google.client import GoogleAPIError
+    from loom.services.industries import queries_for
+    from loom.services.places import ProviderUnavailableError
 
-    if not request.query.strip():
-        raise HTTPException(status_code=400, detail="query is required")
+    terms = queries_for(request.industries) if request.industries else []
+    if request.query.strip():
+        terms.append(request.query.strip())
+    if not terms:
+        raise HTTPException(
+            status_code=400, detail="query or industries is required"
+        )
+
+    # An area from the curated list knows its own country; an ad-hoc one
+    # relies on the caller saying, and falls back to the default provider.
+    country = request.country or (country_of(request.near) if request.near else None)
+    configured = (
+        areas_config().get("countries", {}).get((country or "").upper(), {})
+    )
 
     try:
         candidates = await scout(
-            request.query,
+            terms,
             near=request.near,
             radius_m=request.radius_m,
             max_results=min(request.limit, 60),
             enrich=request.enrich,
             render=request.render,
+            country=country,
+            provider=configured.get("provider"),
         )
+    except ProviderUnavailableError as e:
+        # A market that is researched but not wired up yet. 501 rather than
+        # 502: nothing failed, the capability does not exist.
+        raise HTTPException(status_code=501, detail=str(e)) from e
     except GoogleAPIError as e:
         # Usually: Places API not enabled, or the key's API restrictions
         # exclude it. Surface Google's own wording — it names the fix.
@@ -1765,8 +1794,18 @@ async def scout_search(request: ScoutRequest) -> dict:
 
     return {
         "stats": summarise(candidates),
+        "queries": terms,
+        "country": country,
         "candidates": [c.model_dump(mode="json") for c in candidates],
     }
+
+
+@app.get("/api/scout/industries")
+async def scout_industries(user_id: str = CurrentUser) -> dict:
+    """The curated trades to search for, so the box is not the only input."""
+    from loom.services.industries import industries
+
+    return {"industries": [i.model_dump() for i in industries()]}
 
 
 class SurveyRequest(BaseModel):
@@ -1778,11 +1817,19 @@ class SurveyRequest(BaseModel):
 @app.get("/api/scout/areas")
 async def scout_areas() -> dict:
     """The curated target list, with the reason to be in each place."""
-    from loom.services.area_survey import areas_config, suggested_areas
+    from loom.services.area_survey import (
+        areas_config,
+        searchable_countries,
+        suggested_areas,
+    )
 
     config = areas_config()
     return {
         "areas": suggested_areas(),
+        # Which markets can actually be searched today, and why not when not.
+        # A country whose provider is unimplemented still lists its areas —
+        # the research stands on its own and outlives the integration.
+        "countries": searchable_countries(),
         "avoid": config.get("avoid", {}),
         "default": config.get("default_survey", []),
     }
@@ -1811,6 +1858,10 @@ async def scout_survey(request: SurveyRequest) -> dict:
 
 class SaveLeadsRequest(BaseModel):
     candidates: list[dict]
+    # Which campaign these belong to. Wrong value here is not cosmetic: the
+    # outreach pipeline only runs on "freelance", and only freelance leads
+    # ever receive a commercial email.
+    kind: str = Field(default="freelance", pattern="^(freelance|job)$")
 
 
 class UpdateLeadRequest(BaseModel):
@@ -1829,7 +1880,9 @@ async def save_scout_leads(
 ) -> dict:
     """Save leads. Re-saving refreshes the audit but keeps status and notes."""
     storage = get_storage()
-    result = await storage.upsert_scout_leads(request.candidates, user_id=user_id)
+    result = await storage.upsert_scout_leads(
+        request.candidates, user_id=user_id, kind=request.kind
+    )
     try:
         from loom.services.logger import logger as loom_logger
         await loom_logger.info(
@@ -1844,10 +1897,13 @@ async def save_scout_leads(
 
 @app.get("/api/scout/leads")
 async def list_scout_leads(
-    status: str | None = None, limit: int = 200, user_id: str = CurrentUser
+    status: str | None = None, limit: int = 200, kind: str | None = "freelance",
+    user_id: str = CurrentUser,
 ) -> dict:
     storage = get_storage()
-    leads = await storage.list_scout_leads(status=status, limit=limit, user_id=user_id)
+    leads = await storage.list_scout_leads(
+        status=status, limit=limit, user_id=user_id, kind=kind
+    )
     return {"total": len(leads), "leads": leads}
 
 
@@ -1874,12 +1930,30 @@ async def delete_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
     return {"status": "ok"}
 
 
-async def _require_lead(lead_id: str, user_id: str) -> tuple[Any, dict]:
-    """The lead, or 404 — someone else's lead is indistinguishable from absent."""
+async def _require_lead(
+    lead_id: str, user_id: str, *, kind: str | None = None
+) -> tuple[Any, dict]:
+    """The lead, or 404 — someone else's lead is indistinguishable from absent.
+
+    `kind` is how the outreach pipeline stays on its own side of the line. A
+    job-hunt lead reaching harvest → demo → draft → send would end with a
+    commercial pitch, signed with your business name, in the inbox of a company
+    you had merely wanted to work for. Under the Spam Act those are different
+    messages with different rules, so this refuses rather than filters.
+    """
     storage = get_storage()
     lead = await storage.get_scout_lead(lead_id, user_id=user_id)
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
+    if kind and lead.get("kind") != kind:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"This is a '{lead.get('kind')}' lead. The outreach pipeline "
+                f"only runs on '{kind}' leads — a commercial pitch must never "
+                f"be sent to a company saved for a job enquiry."
+            ),
+        )
     return storage, lead
 
 
@@ -1888,7 +1962,7 @@ async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
     """Read the business's own pages for menu, hours, images and socials."""
     from loom.services.site_harvest import harvest_lead
 
-    storage, lead = await _require_lead(lead_id, user_id)
+    storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     harvest = await harvest_lead(lead)
     await storage.update_scout_lead(
         lead_id,
@@ -1908,7 +1982,7 @@ async def plan_scout_demo(lead_id: str, user_id: str = CurrentUser) -> dict:
     from loom.services.demo_planner import plan_demo
     from loom.services.site_harvest import Harvest
 
-    storage, lead = await _require_lead(lead_id, user_id)
+    storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     if not lead.get("harvest"):
         raise HTTPException(status_code=400, detail="Harvest the site first")
 
@@ -1940,7 +2014,7 @@ async def build_scout_demo(
     from loom.services.demo_builder import slug_for, write_demo
     from loom.services.site_harvest import Harvest
 
-    storage, lead = await _require_lead(lead_id, user_id)
+    storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     if not lead.get("harvest"):
         raise HTTPException(status_code=400, detail="Harvest the site first")
 
@@ -2030,7 +2104,7 @@ async def select_scout_demo(
     """Make one variant the published page."""
     from loom.services.demo_builder import write_demo
 
-    storage, lead = await _require_lead(lead_id, user_id)
+    storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     variants = lead.get("demo_variants") or {}
     if direction not in variants:
         raise HTTPException(status_code=404, detail="No such variant")
@@ -2051,7 +2125,7 @@ async def scout_demo_thumb(
     """Phone-shaped JPEG of one variant, for comparing designs at a glance."""
     import base64
 
-    _, lead = await _require_lead(lead_id, user_id)
+    _, lead = await _require_lead(lead_id, user_id, kind="freelance")
     variant = (lead.get("demo_variants") or {}).get(direction) or {}
     if not variant.get("thumb"):
         raise HTTPException(status_code=404, detail="No thumbnail")
@@ -2069,7 +2143,7 @@ async def preview_scout_demo(lead_id: str, user_id: str = CurrentUser) -> Respon
     """Serve the generated demo so it can be previewed before publishing."""
     from loom.services.demo_builder import DEMO_ROOT
 
-    _, lead = await _require_lead(lead_id, user_id)
+    _, lead = await _require_lead(lead_id, user_id, kind="freelance")
     slug = lead.get("demo_slug")
     path = DEMO_ROOT / slug / "index.html" if slug else None
     if not path or not path.exists():
@@ -2115,7 +2189,7 @@ async def draft_scout_outreach(
         suggest_template,
     )
 
-    storage, lead = await _require_lead(lead_id, user_id)
+    storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     key = request.template or suggest_template(lead)
 
     try:

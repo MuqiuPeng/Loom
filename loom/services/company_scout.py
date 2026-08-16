@@ -36,7 +36,9 @@ from pydantic import BaseModel, Field, computed_field
 
 from loom.services import consent
 from loom.services.broken_links import check_links
-from loom.services.google.places import FIELDS_CONTACT, Place, places
+from loom.services.google.places import Place
+from loom.services.places import PlaceResult
+from loom.services.places import search as places_search
 from loom.services.site_audit import (
     Finding,
     SiteAudit,
@@ -113,7 +115,12 @@ _EMAIL_NOISE = re.compile(
 class Candidate(BaseModel):
     """One company, with its Google-sourced and self-sourced halves separated."""
 
-    # ── from Google Places — transient, do not persist ────────────────
+    # ── from the map provider — transient, do not persist ─────────────
+    # Which provider found it. The same café has a different id in Google and
+    # in Amap, so the pair (provider, place_id) is what identifies a business,
+    # and the retention rules that apply to the fields below are the
+    # provider's — see loom.services.places.base.RetentionPolicy.
+    provider: str = "google"
     place_id: str = ""
     google_name: str = ""
     google_address: str = ""
@@ -220,6 +227,7 @@ class Candidate(BaseModel):
         The audit is derived from their page, so it's self-sourced too.
         """
         return {
+            "provider": self.provider,
             "place_id": self.place_id,
             "site_url": self.site_url,
             "site_title": self.site_title,
@@ -524,58 +532,122 @@ class _SiteFetcher:
 # ── orchestration ────────────────────────────────────────────────────
 
 
+def _to_candidate(p: PlaceResult) -> "Candidate":
+    return Candidate(
+        place_id=p.provider_place_id,
+        provider=p.provider,
+        google_name=p.name,
+        google_address=p.address,
+        google_website=p.website,
+        google_phone=p.phone,
+        primary_type=p.primary_type,
+        google_rating=p.rating,
+        google_rating_count=p.rating_count,
+        google_price_level=p.price_level,
+        google_hours=p.hours,
+        google_maps_uri=p.map_uri,
+        google_types=p.types,
+    )
+
+
+async def discover(
+    queries: list[str],
+    *,
+    near: str | None = None,
+    radius_m: int = 5000,
+    max_results: int = 20,
+    country: str | None = None,
+    provider: str | None = None,
+) -> list[Candidate]:
+    """Run every query against the map provider and merge the results.
+
+    Merged on (provider, place_id): providers match on their own category
+    vocabulary, so "plumber" and "plumbing service" overlap heavily, and a
+    business that answers to both must not be enriched — or emailed — twice.
+    """
+    if not queries:
+        return []
+
+    async def one(term: str) -> list[Candidate]:
+        found = await places_search(
+            term,
+            near=near,
+            radius_m=radius_m,
+            max_results=max_results,
+            country=country,
+            provider_name=provider,
+        )
+        return [_to_candidate(p) for p in found]
+
+    batches = await asyncio.gather(*(one(q) for q in queries))
+
+    merged: dict[tuple[str, str], Candidate] = {}
+    for batch in batches:
+        for candidate in batch:
+            merged.setdefault((candidate.provider, candidate.place_id), candidate)
+    return list(merged.values())
+
+
+async def enrich_candidates(
+    candidates: list[Candidate], *, render: bool = True
+) -> list[Candidate]:
+    """Read each company's own site: title, careers page, emails, audit."""
+    if not candidates:
+        return []
+
+    async with httpx.AsyncClient(
+        timeout=FETCH_TIMEOUT,
+        follow_redirects=True,
+        headers={"User-Agent": USER_AGENT},
+    ) as client:
+        fetcher = _SiteFetcher(client)
+        gate = asyncio.Semaphore(MAX_CONCURRENT_SITES)
+
+        async def one(candidate: Candidate) -> Candidate:
+            async with gate:
+                return await fetcher.enrich(candidate)
+
+        candidates = list(await asyncio.gather(*(one(c) for c in candidates)))
+
+    if render:
+        await _render_audit(candidates)
+    return candidates
+
+
 async def scout(
-    query: str,
+    query: str | list[str],
     *,
     near: str | None = None,
     radius_m: int = 5000,
     max_results: int = 20,
     enrich: bool = True,
     render: bool = True,
+    country: str | None = None,
+    provider: str | None = None,
 ) -> list[Candidate]:
-    """Discover companies, then read what matters from their own sites."""
-    found = await places.search_text(
-        query, near=near, radius_m=radius_m, max_results=max_results, fields=FIELDS_CONTACT
+    """Discover companies, then read what matters from their own sites.
+
+    `query` may be one term or several — several are merged before any site is
+    fetched, so overlapping industry queries cost one crawl per business
+    rather than one per query that matched it.
+
+    `country` picks the map provider — see loom.services.places. Left off, the
+    unrestricted fallback answers, which is Google.
+    """
+    queries = [query] if isinstance(query, str) else list(query)
+    candidates = await discover(
+        queries,
+        near=near,
+        radius_m=radius_m,
+        max_results=max_results,
+        country=country,
+        provider=provider,
     )
-    candidates = [
-        Candidate(
-            place_id=p.place_id,
-            google_name=p.name,
-            google_address=p.address,
-            google_website=p.website,
-            google_phone=p.phone,
-            primary_type=p.primary_type,
-            google_rating=p.rating,
-            google_rating_count=p.rating_count,
-            google_price_level=p.price_level,
-            google_hours=p.hours,
-            google_maps_uri=p.maps_uri,
-            google_types=p.types,
-        )
-        for p in found
-    ]
 
     if enrich:
-        async with httpx.AsyncClient(
-            timeout=FETCH_TIMEOUT,
-            follow_redirects=True,
-            headers={"User-Agent": USER_AGENT},
-        ) as client:
-            fetcher = _SiteFetcher(client)
-            gate = asyncio.Semaphore(MAX_CONCURRENT_SITES)
+        candidates = await enrich_candidates(candidates, render=render)
 
-            async def one(candidate: Candidate) -> Candidate:
-                async with gate:
-                    return await fetcher.enrich(candidate)
-
-            candidates = list(
-                await asyncio.gather(*(one(c) for c in candidates))
-            )
-
-    if enrich and render:
-        await _render_audit(candidates)
-
-    await _log_run(query, near, candidates)
+    await _log_run(", ".join(queries), near, candidates)
     return candidates
 
 

@@ -31,27 +31,79 @@ DEFAULT_LIMIT = 20
 CONCURRENT_AREAS = 3
 
 
+EMPTY_CONFIG: dict[str, Any] = {"countries": {}, "default_survey": []}
+
+
 @lru_cache(maxsize=1)
 def _load(mtime: float) -> dict[str, Any]:
     try:
         return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"regions": {}, "default_survey": []}
+        return dict(EMPTY_CONFIG)
 
 
 def areas_config() -> dict[str, Any]:
     try:
         return _load(CONFIG_PATH.stat().st_mtime)
     except OSError:
-        return {"regions": {}, "default_survey": []}
+        return dict(EMPTY_CONFIG)
 
 
 def suggested_areas() -> list[dict[str, str]]:
-    """Every curated area, flattened, with its reason attached."""
+    """Every curated area, flattened, with its reason attached.
+
+    Each entry carries the country it belongs to and the provider that can
+    answer for it, so a caller can tell an area it can search from one that is
+    research for a market not wired up yet.
+    """
     out: list[dict[str, str]] = []
-    for region, entries in areas_config().get("regions", {}).items():
-        for entry in entries:
-            out.append({**entry, "region": region})
+    for code, country in areas_config().get("countries", {}).items():
+        for region, entries in (country.get("regions") or {}).items():
+            for entry in entries:
+                out.append(
+                    {
+                        **entry,
+                        "region": region,
+                        "country": code,
+                        "country_name": country.get("name", code),
+                        "provider": country.get("provider", "google"),
+                        "language": country.get("language"),
+                    }
+                )
+    return out
+
+
+def country_of(area: str) -> str | None:
+    """Which country a curated area sits in, if it is one we know."""
+    for entry in suggested_areas():
+        if entry["area"] == area:
+            return entry.get("country")
+    return None
+
+
+def searchable_countries() -> list[dict[str, Any]]:
+    """Countries in the config, and whether a provider can actually serve them."""
+    from loom.services.places import ProviderUnavailableError, provider_for
+
+    out = []
+    for code, country in areas_config().get("countries", {}).items():
+        try:
+            provider_for(code, named=country.get("provider"))
+            available = True
+            detail = None
+        except ProviderUnavailableError as e:
+            available = False
+            detail = str(e)
+        out.append(
+            {
+                "code": code,
+                "name": country.get("name", code),
+                "provider": country.get("provider", "google"),
+                "available": available,
+                "detail": detail,
+                "areas": sum(len(v) for v in (country.get("regions") or {}).values()),
+            }
+        )
     return out
 
 
@@ -102,11 +154,15 @@ async def survey(
 
     gate = asyncio.Semaphore(CONCURRENT_AREAS)
 
+    known = {a["area"]: a for a in suggested_areas()}
+
     async def one(area: str) -> AreaResult:
         async with gate:
             try:
+                entry = known.get(area, {})
                 found = await scout(
-                    query, near=area, max_results=limit, enrich=True, render=False
+                    query, near=area, max_results=limit, enrich=True, render=False,
+                    country=entry.get("country"), provider=entry.get("provider"),
                 )
             except Exception as e:
                 return AreaResult(area=area, note=notes.get(area, ""), error=str(e)[:160])

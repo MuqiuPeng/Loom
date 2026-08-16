@@ -911,7 +911,8 @@ class PostgresDataStorage(DataStorage):
     # ── Scout leads ──────────────────────────────────────────────────
 
     async def upsert_scout_leads(
-        self, candidates: list[dict], user_id: str | None = None
+        self, candidates: list[dict], user_id: str | None = None,
+        kind: str = "freelance",
     ) -> dict[str, int]:
         """Save leads, one row per place_id.
 
@@ -933,13 +934,17 @@ class PostgresDataStorage(DataStorage):
             place_id = c.get("place_id")
             if not place_id:
                 continue
-            # Scoped to the user: two accounts scouting the same suburb each
-            # keep their own row, with their own status and notes, rather than
-            # the second one inheriting the first one's outreach history.
+            # Scoped to the user AND the campaign: two accounts scouting the
+            # same suburb each keep their own row rather than inheriting the
+            # other's outreach history, and a business saved for a job hunt is
+            # a different row from the same business saved as a freelance lead.
+            provider = c.get("provider") or "google"
             result = await session.execute(
                 select(ScoutLeadModel).where(
                     ScoutLeadModel.place_id == place_id,
                     ScoutLeadModel.user_id == user_id,
+                    ScoutLeadModel.kind == kind,
+                    ScoutLeadModel.provider == provider,
                 )
             )
             row = result.scalar_one_or_none()
@@ -968,8 +973,9 @@ class PostgresDataStorage(DataStorage):
             if row is None:
                 session.add(
                     ScoutLeadModel(
-                        place_id=place_id, user_id=user_id, created_at=now,
-                        updated_at=now, **fields,
+                        place_id=place_id, user_id=user_id, kind=kind,
+                        provider=provider, created_at=now, updated_at=now,
+                        **fields,
                     )
                 )
                 created += 1
@@ -982,13 +988,16 @@ class PostgresDataStorage(DataStorage):
         return {"created": created, "updated": updated}
 
     async def list_scout_leads(
-        self, status: str | None = None, user_id: str | None = None, limit: int = 200
+        self, status: str | None = None, user_id: str | None = None,
+        limit: int = 200, kind: str | None = None,
     ) -> list[dict]:
         from loom.storage.models import ScoutLeadModel
 
         user_id = user_id or get_current_user()
         session = await self._get_session()
         query = select(ScoutLeadModel).where(ScoutLeadModel.user_id == user_id)
+        if kind and kind != "all":
+            query = query.where(ScoutLeadModel.kind == kind)
         if status and status != "all":
             query = query.where(ScoutLeadModel.status == status)
         query = query.order_by(
@@ -1011,6 +1020,8 @@ class PostgresDataStorage(DataStorage):
             {
                 "id": str(r.id),
                 "place_id": r.place_id,
+                "kind": r.kind,
+                "provider": r.provider,
                 "status": r.status,
                 "notes": r.notes,
                 "site_url": r.site_url,
@@ -1083,6 +1094,8 @@ class PostgresDataStorage(DataStorage):
         return {
             "id": str(row.id),
             "place_id": row.place_id,
+            "kind": row.kind,
+            "provider": row.provider,
             "status": row.status,
             "notes": row.notes,
             "site_url": row.site_url,
