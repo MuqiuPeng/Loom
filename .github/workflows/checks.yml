@@ -16,6 +16,11 @@
 # So: no scheduled runs, no deploy keys, no secrets. If this workflow ever
 # needs a secret, something has been added to it that does not belong.
 
+# Action majors are pinned at v7 because v4/v5 still declare node20, which
+# the runners now force onto node24 and warn about — a warning that becomes a
+# failure on someone else's schedule, in a job that has nothing to do with
+# whatever change is being pushed at the time.
+
 name: checks
 
 on:
@@ -33,9 +38,9 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -76,9 +81,9 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
