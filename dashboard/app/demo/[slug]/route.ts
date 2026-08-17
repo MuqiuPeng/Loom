@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { withPreviewNotice } from "@/lib/demo-banner";
 
 /** A demo, served to whoever has the link — but only once it has been made
  * shareable for that lead.
@@ -17,10 +18,10 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
-  let rows: { demo_html: string | null }[];
+  let rows: { demo_html: string | null; google_name: string | null }[];
   try {
-    rows = await sql<{ demo_html: string | null }[]>`
-      select demo_html
+    rows = await sql<{ demo_html: string | null; google_name: string | null }[]>`
+      select demo_html, google_name
       from scout_leads
       where demo_slug = ${params.slug}
         and demo_public = true
@@ -41,7 +42,9 @@ export async function GET(
     });
   }
 
-  return new NextResponse(html, {
+  // Stamped here rather than in the page: the document is model-written and
+  // a model can drop a line, but the response is ours.
+  return new NextResponse(withPreviewNotice(html, rows[0]?.google_name), {
     status: 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
