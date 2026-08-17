@@ -33,6 +33,7 @@ from loom.services.company_scout import (
     _text,
     visible_text,
 )
+from loom.services.page_render import Renderer, is_thin
 
 MAX_PAGES = 6
 # Budgets sized for real page copy. They were set for tag-stripped HTML, which
@@ -188,6 +189,18 @@ Rules:
 _TRANSPORT_ERRORS = (httpx.HTTPError, OSError)
 
 
+async def _thicken(renderer: Renderer, url: str, html: str) -> str:
+    """The rendered document when the fetched one carries no text.
+
+    Checked per page rather than once for the site: a server-rendered home
+    page can still link to a menu that is a client-side app, and paying for a
+    browser on the pages that do not need one is the cost this avoids.
+    """
+    if not is_thin(visible_text(html)):
+        return html
+    return await renderer.html_of(url) or html
+
+
 def _pick_pages(html: str, base: str) -> list[str]:
     """Choose the few internal pages worth reading, best menu candidate first.
 
@@ -336,22 +349,29 @@ async def harvest_site(
             return harvest
 
         base = str(home.url)
-        pages = {base: home.text}
-        harvest.pages_read = [base]
-        harvest.images = _images(home.text, base)
-        harvest.socials = _socials(home.text)
+        # A shell page costs more than the text it is missing: _pick_pages
+        # reads its links, so nothing gets crawled either, and the home page
+        # is the one where that compounds.
+        async with Renderer() as renderer:
+            home_html = await _thicken(renderer, base, home.text)
 
-        for page_url in _pick_pages(home.text, base):
-            try:
-                response, _ = await fetcher._get(page_url)
-            except _TRANSPORT_ERRORS:
-                continue
-            if response is None or response.status_code >= 400:
-                continue
-            pages[page_url] = response.text
-            harvest.pages_read.append(page_url)
-            harvest.images = (harvest.images + _images(response.text, page_url))[:16]
-            harvest.socials = {**_socials(response.text), **harvest.socials}
+            pages = {base: home_html}
+            harvest.pages_read = [base]
+            harvest.images = _images(home_html, base)
+            harvest.socials = _socials(home_html)
+
+            for page_url in _pick_pages(home_html, base):
+                try:
+                    response, _ = await fetcher._get(page_url)
+                except _TRANSPORT_ERRORS:
+                    continue
+                if response is None or response.status_code >= 400:
+                    continue
+                html = await _thicken(renderer, page_url, response.text)
+                pages[page_url] = html
+                harvest.pages_read.append(page_url)
+                harvest.images = (harvest.images + _images(html, page_url))[:16]
+                harvest.socials = {**_socials(html), **harvest.socials}
 
     # Hand the readable text to Claude — menus are laid out too many ways to
     # parse structurally, but they're trivial to read.

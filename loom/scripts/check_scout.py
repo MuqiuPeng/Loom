@@ -360,11 +360,50 @@ async def image_pick_checks() -> None:
     )
 
 
+async def render_fallback_checks() -> None:
+    """The rendering fallback's contract, with no browser in the room.
+
+    CI has no Chromium by design, so what is asserted here is the behaviour
+    that matters when there isn't one: the harvest keeps whatever HTML it
+    fetched and nothing raises.
+    """
+    from loom.services.page_render import Renderer, is_thin
+
+    print("\n-- browser fallback --")
+
+    check(is_thin(""), "an empty document is a shell")
+    check(is_thin("Loading..."), "a spinner is a shell")
+    check(not is_thin("word " * 200), "a page with words on it is not")
+
+    renderer = Renderer()
+    renderer._failed = True  # what a machine with no Playwright looks like
+    check(
+        await renderer.html_of("https://example.invalid") == "",
+        "no browser returns nothing rather than raising",
+    )
+    await renderer.close()
+
+    # The caller's rule: rendering is an improvement on the HTML it holds, so
+    # an empty render must leave that HTML in place.
+    from loom.services.site_harvest import _thicken
+
+    shell = "<html><body>Loading...</body></html>"
+    kept = await _thicken(renderer, "https://example.invalid", shell)
+    check(kept == shell, "a failed render keeps the fetched page")
+
+    full = "<html><body>" + ("word " * 300) + "</body></html>"
+    check(
+        await _thicken(renderer, "https://example.invalid", full) == full,
+        "a page with text is never re-fetched",
+    )
+
+
 async def main() -> int:
     audit_checks()
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    await render_fallback_checks()
     if failures:
         print(f"\n{len(failures)} check(s) failed")
         return 1
