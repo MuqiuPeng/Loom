@@ -1949,7 +1949,7 @@ async def build_scout_demo(
     import base64
 
     from loom.services.demo_agent import build_variants
-    from loom.services.demo_builder import slug_for, write_demo
+    from loom.services.demo_builder import new_slug, write_demo
     from loom.services.site_harvest import Harvest
 
     storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
@@ -1989,11 +1989,9 @@ async def build_scout_demo(
     }
     # The first is only a default; the point of the set is that it gets changed.
     active = lead.get("demo_active") if lead.get("demo_active") in variants else next(iter(variants))
-    slug = lead.get("demo_slug") or slug_for(
-        lead.get("google_name") or lead.get("site_title") or "",
-        lead["place_id"],
-        user_id,
-    )
+    # Reusing the stored slug is what keeps an already-shared link working;
+    # a new one is only minted the first time a demo is built.
+    slug = lead.get("demo_slug") or new_slug()
     write_demo(slug, variants[active]["html"])
     await storage.update_scout_lead(
         lead_id,

@@ -19,8 +19,8 @@ with the business itself.
 """
 
 import asyncio
-import hashlib
 import re
+import secrets
 import shutil
 from pathlib import Path
 
@@ -81,25 +81,32 @@ def extract_document(text: str) -> str:
     return text.strip()
 
 
-def slug_for(name: str, place_id: str, user_id: str) -> str:
-    """Stable, readable folder name for one business, for one user.
+def new_slug() -> str:
+    """An opaque public URL for one demo. Names nothing and derives from nothing.
 
-    The slug is the public URL, so it has to be unique across everyone: two
-    people scouting the same shop derive the same name and the same place_id,
-    and the demo route serves whichever row it happens to read first — which
-    means your customer's link can open somebody else's page. The user's
-    fingerprint is what keeps those apart.
+    The slug used to be the business name plus the tail of its Google place_id
+    plus a fingerprint of the owner. Readable, and wrong twice over.
 
-    Deterministic, so re-building a demo keeps the URL it was already shared
-    under. Existing slugs are stored on the lead and read back before this is
-    ever called, so changing the formula does not break links already sent.
+    It named the shop. The demo carries that shop's real name, address, phone
+    and trading hours, and it answers to anyone who has the link; a URL reading
+    `/demo/caf-calibre-…` makes an unsent mockup look like the business's own
+    site to whoever it reaches. noindex keeps it out of search results, which
+    is not the same as keeping the shop's name out of the address bar.
+
+    Worse, it was derivable. The name is public and the place_id is public —
+    anyone can read both off Google Maps — so the only part not sitting in
+    plain sight was a four-character hash of the user, and four characters is
+    sixty-five thousand guesses. The address of a page about a named business
+    should not be computable by anyone who knows the business.
+
+    So: random, and nothing else. Determinism is not lost with it — the slug is
+    stored on the lead and read back before this is ever called, which is what
+    actually keeps a shared link working across rebuilds. The uniqueness the
+    old formula worked for is now sixty-four bits of entropy, with the partial
+    unique index on demo_slug as the backstop that fails a write rather than
+    letting a read land on somebody else's page.
     """
-    base = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")[:40]
-    if not base:
-        base = "demo"
-    # place_id tail keeps two shops with the same name apart.
-    owner = hashlib.sha256(user_id.encode()).hexdigest()[:4]
-    return f"{base}-{place_id[-6:].lower()}-{owner}"
+    return secrets.token_hex(8)
 
 
 def _facts(lead: dict, harvest: Harvest) -> str:
