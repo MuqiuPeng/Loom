@@ -342,34 +342,34 @@ def follow_up_checks() -> None:
 
     # Tue 2026-08-04 10:00 UTC == 20:00 Sydney. Wed the 12th, 01:00 UTC, is
     # 11:00 Sydney: a working hour, six business days later.
-    SENT = datetime(2026, 8, 4, 10, 0)
-    NOW = datetime(2026, 8, 12, 1, 0)
+    sent_at = datetime(2026, 8, 4, 10, 0)
+    now = datetime(2026, 8, 12, 1, 0)
 
     base = {
         "kind": "freelance",
         "status": "contacted",
-        "contacted_at": SENT,
+        "contacted_at": sent_at,
         "followed_up_at": None,
         "demo_slug": "f689b81c4eec8ba7",
         "demo_public": True,
     }
-    check(due(base, NOW)[0], "a contacted lead is followed up")
+    check(due(base, now)[0], "a contacted lead is followed up")
 
     def refused(**over):
-        return due({**base, **over}, NOW)
+        return due({**base, **over}, now)
 
     # Friday to Monday is one business day, not three: the weekend is not
     # time the recipient had to answer in.
     fri, mon = datetime(2026, 8, 7, 4, 0), datetime(2026, 8, 10, 1, 0)
     check(business_days_between(fri, mon) == 1, "a weekend is not two days of waiting")
-    check(business_days_between(SENT, SENT) == 0, "no time has passed yet")
+    check(business_days_between(sent_at, sent_at) == 0, "no time has passed yet")
     check(not refused(contacted_at=datetime(2026, 8, 11, 4, 0))[0], "one day is too soon")
 
     check(not refused(status="replied")[0], "a lead that replied is left alone")
     check(not refused(status="opted_out")[0], "an opted-out lead is never chased")
     check(not refused(opted_out=True)[0], "the opt-out flag is honoured too")
     check(not refused(status="won")[0], "a won deal needs no nudge")
-    check(not refused(followed_up_at=NOW)[0], "the follow-up goes once, not twice")
+    check(not refused(followed_up_at=now)[0], "the follow-up goes once, not twice")
     check(not refused(contacted_at=None)[0], "a lead never written to is not followed up")
     check(not refused(kind="job")[0], "a job lead never receives a commercial nudge")
     check(not refused(demo_public=False)[0], "no nudge pointing at a demo nobody can open")
@@ -382,7 +382,7 @@ def follow_up_checks() -> None:
     check(not in_working_hours(datetime(2026, 8, 12, 10, 0)), "not at 8pm their time")
     check(not in_working_hours(datetime(2026, 8, 12, 20, 0)), "not at 6am their time")
     check(not in_working_hours(datetime(2026, 8, 15, 1, 0)), "not on a Saturday")
-    check(in_working_hours(NOW), "11am on a Wednesday is fine")
+    check(in_working_hours(now), "11am on a Wednesday is fine")
 
     # The reason is returned so a person can be told why a lead is not listed.
     check(refused(status="replied")[1] == "status is replied", "the refusal says why")
