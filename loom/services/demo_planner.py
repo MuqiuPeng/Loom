@@ -132,6 +132,15 @@ async def plan_demo(
     """Read the evidence and propose directions. Cheap; nothing is generated."""
     claude = claude or Claude.tracked("demo_plan")
     available = set(styles().get("directions", {}))
+    if not available:
+        # Nothing to choose from means the catalogue could not be read, not
+        # that this business suits no direction. Returning an empty plan here
+        # would be stored as a successful one and leave Build greyed out
+        # forever with nothing explaining it.
+        return DemoPlan(
+            error="no art directions are loaded — config/demo_styles.json is "
+                  "missing or does not parse"
+        )
 
     try:
         # DemoPlan is the tool schema, so shape and types are enforced by the

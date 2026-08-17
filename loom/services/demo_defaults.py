@@ -19,6 +19,7 @@ touching code or restarting anything.
 """
 
 import json
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -240,9 +241,28 @@ STYLES_PATH = Path("config/demo_styles.json")
 
 @lru_cache(maxsize=1)
 def _load_styles(mtime: float) -> dict[str, Any]:
+    """The art directions, or an empty set if the file cannot be read.
+
+    A malformed file used to be indistinguishable from a file with no
+    directions in it, and the consequences were invisible: the planner handed
+    the model an empty catalogue, the model returned an empty plan, the
+    endpoint stored it as a success, and the Build button greyed out for good
+    with nothing on screen saying why. That actually happened — a plan was
+    generated while this file was mid-write.
+
+    So the parse failure is logged, and callers that cannot work without
+    directions check for the empty case rather than proceeding into it.
+    """
     try:
         return json.loads(STYLES_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except json.JSONDecodeError as e:
+        logging.getLogger(__name__).error(
+            "%s is not valid JSON (%s) — every art direction is unavailable "
+            "until it parses", STYLES_PATH, e
+        )
+        return {"directions": {}, "universal_rules": []}
+    except OSError as e:
+        logging.getLogger(__name__).error("cannot read %s: %s", STYLES_PATH, e)
         return {"directions": {}, "universal_rules": []}
 
 
