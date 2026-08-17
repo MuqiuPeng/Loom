@@ -81,6 +81,10 @@ _IMG_NOISE = re.compile(
     r"staticmap|getmapimage|map-?image",
     re.I,
 )
+# Characters that cannot occur inside a single URL attribute. Any of them
+# means the match ran past the attribute it started in.
+_URL_JUNK = ('"', "'", " ", "\\", "\n", "\t", "<", ">")
+
 # Heroes are routinely CSS backgrounds rather than <img> tags.
 _CSS_BG_RE = re.compile(r"background(?:-image)?\s*:\s*[^;}]*url\(\s*['\"]?([^'\")]+)", re.I)
 
@@ -285,8 +289,25 @@ def _images(html: str, base: str) -> list[str]:
         src = unescape(src.strip())
         if not src or src.startswith("data:"):
             continue
+        # A quote, a space or a backslash inside what should be one URL means
+        # the match ran past the attribute it started in — usually into
+        # JavaScript, where the same address appears again inside a string.
+        # pvgrinds.com produced exactly that: the captured value began with a
+        # quote, urljoin treated the whole thing as a relative path, and the
+        # demo was handed
+        #     http://pvgrinds.com/"http:/pvgrinds.com/images/...jpg
+        # which renders as a broken image in the panel and in the page. That
+        # site never finishes rendering, so the browser fallback cannot save
+        # it and the raw HTML — scripts and all — is what gets scanned.
+        if any(character in src for character in _URL_JUNK):
+            continue
         url = urljoin(base, src)
         if not url.startswith(("http://", "https://")):
+            continue
+        # Two schemes in one address is the same fault seen from the other
+        # end: a full URL that has been joined onto a base as though it were
+        # a path.
+        if url.count("://") > 1:
             continue
 
         parts = urlparse(url)

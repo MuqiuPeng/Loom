@@ -360,6 +360,41 @@ async def image_pick_checks() -> None:
     )
 
 
+def geography_checks() -> None:
+    """Leads must be in the country that was searched, and URLs must be URLs."""
+    from loom.services.company_scout import Candidate, _in_country
+    from loom.services.site_harvest import _images
+
+    print("\n-- geography and malformed URLs --")
+
+    def at(address):
+        return Candidate(provider="google", place_id="p",
+                         google_name="Shop", google_address=address)
+
+    au = "66 Constitution Rd, Dulwich Hill NSW 2203, Australia"
+    us = "3820 E Main St #9, Mesa, AZ 85205, USA"
+
+    check(_in_country(at(au), "AU"), "an Australian shop passes an Australian search")
+    check(not _in_country(at(us), "AU"), "a shop in Arizona does not")
+    check(not _in_country(at("1 Queen St, Auckland 1010, New Zealand"), "AU"),
+          "nor does one across the Tasman")
+    check(_in_country(at(us), None), "with no country searched, nothing is dropped")
+    check(_in_country(at("a line with no comma"), "AU"),
+          "an address naming no country is not evidence of a foreign one")
+
+    # The one that reached the panel as a broken thumbnail: the match ran out
+    # of the attribute and into a script, and urljoin made a URL of the wreck.
+    page = (
+        '<html><body><img src=\'"http:/pvgrinds.com/images/a.jpg\'>'
+        '<img src="/images/real.jpg"></body></html>'
+    )
+    found = _images(page, "http://pvgrinds.com/")
+    check(found == ["http://pvgrinds.com/images/real.jpg"],
+          "a URL with a quote in it is dropped and the sound one kept")
+    check(not any("://" in u.split("://", 1)[1] for u in found),
+          "and nothing comes out with two schemes in it")
+
+
 def menu_doc_checks() -> None:
     """Which links are the menu, and which only look like it."""
     from loom.services import menu_doc
@@ -444,6 +479,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    geography_checks()
     menu_doc_checks()
     await render_fallback_checks()
     if failures:

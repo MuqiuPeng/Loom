@@ -150,7 +150,14 @@ class PlacesService(GoogleService):
         if near:
             centre = await geocoding.geocode(near)
             if centre:
-                body["locationBias"] = {
+                # Restriction, not bias. Bias is a preference Google is free to
+                # overrule, and it does: a search for espresso bars around a
+                # NSW suburb returned a shop in Wilmington, Delaware, because
+                # the name matched strongly enough to outweigh the geography.
+                # regionCode does not help — it formats and ranks, and the API
+                # documents that it does not restrict. This is the only
+                # parameter that actually means "not outside here".
+                body["locationRestriction"] = {
                     "circle": {
                         "center": {"latitude": centre.lat, "longitude": centre.lng},
                         "radius": float(radius_m),

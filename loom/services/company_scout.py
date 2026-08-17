@@ -24,6 +24,7 @@ Two use cases, and they are legally different:
 """
 
 import asyncio
+import logging
 import re
 import time
 from datetime import UTC, datetime
@@ -47,6 +48,8 @@ from loom.services.site_audit import (
     no_website_audit,
     refuses_unsolicited,
 )
+
+logger = logging.getLogger(__name__)
 
 USER_AGENT = "loom-company-scout/0.1 (+contact via site owner)"
 FETCH_TIMEOUT = 8.0
@@ -550,6 +553,48 @@ def _to_candidate(p: PlaceResult) -> "Candidate":
     )
 
 
+def _in_country(candidate: "Candidate", country: str | None) -> bool:
+    """Whether this result is in the country that was searched.
+
+    locationRestriction handles a search that names an area, and this handles
+    the one that does not — a query with no `near` has no geographic parameter
+    at all, so nothing but the words stops it landing anywhere on earth.
+
+    It is worth two guards rather than one because of what the pipeline
+    downstream assumes. The consent argument is written against the Australian
+    Spam Act, the quote is in Australian dollars, the follow-up waits for
+    business hours in Sydney and the signature carries an Australian business
+    name. A shop in Mesa, Arizona reaching the end of that is not a lead with
+    the wrong postcode; it is the wrong law, the wrong currency and a message
+    that arrives in the middle of their night.
+
+    Unknown country, or an address that names none, passes: this drops what is
+    demonstrably foreign, not everything it cannot place.
+    """
+    if not country:
+        return True
+    from loom.services.area_survey import areas_config
+
+    countries = areas_config().get("countries") or {}
+    expected = (countries.get(country.upper()) or {}).get("name")
+    if not expected:
+        return True
+    address = (candidate.google_address or "").strip()
+    # Google writes the country after the last comma and spells it out, so an
+    # address with no comma carries no country and is not evidence of anything.
+    # An exact match on that field rather than a substring test — otherwise a
+    # search for New Zealand keeps anything ending in "Zealand".
+    if "," not in address:
+        return True
+    tail = address.rsplit(",", 1)[-1].strip().lower()
+    if tail in ("", expected.lower()):
+        return True
+    logger.info(
+        "dropping %s — %s is not in %s", candidate.google_name, tail, expected
+    )
+    return False
+
+
 async def discover(
     queries: list[str],
     *,
@@ -584,6 +629,8 @@ async def discover(
     merged: dict[tuple[str, str], Candidate] = {}
     for batch in batches:
         for candidate in batch:
+            if not _in_country(candidate, country):
+                continue
             merged.setdefault((candidate.provider, candidate.place_id), candidate)
     return list(merged.values())
 
