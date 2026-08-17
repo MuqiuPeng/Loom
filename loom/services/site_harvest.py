@@ -105,7 +105,22 @@ class Selection(BaseModel):
     highlight: str | None = None  # anything the user wants the demo to lead on
 
     def images_from(self, images: list[str]) -> list[str]:
-        return [i for i in images if i in self.images] if self.images else images
+        """The picked images, in the order they were picked.
+
+        Iterating the harvest and testing membership — which is what this did —
+        filters correctly and then hands back the harvest's own order, so a
+        curated first image silently stops being first. Which image leads is
+        most of what a viewer sees; discarding the one signal that says which
+        one should is not a small loss.
+
+        Still intersected rather than returned as-is: a selection made before a
+        re-harvest can name an image the site no longer serves, and a demo is
+        better without that photo than with a broken one.
+        """
+        if not self.images:
+            return images
+        available = set(images)
+        return [i for i in self.images if i in available]
 
     def menu_from(self, menu: list["MenuItem"]) -> list["MenuItem"]:
         return [m for m in menu if m.name in self.menu] if self.menu else menu
@@ -296,8 +311,14 @@ def _socials(html: str) -> dict[str, str]:
     return found
 
 
-async def harvest_site(url: str, *, claude: Claude | None = None) -> Harvest:
-    """Read a business's site and extract what a demo needs."""
+async def harvest_site(
+    url: str, *, business: str = "", claude: Claude | None = None
+) -> Harvest:
+    """Read a business's site and extract what a demo needs.
+
+    `business` is only used to judge the photographs — whether a picture is
+    of this shop or is stock the theme shipped with.
+    """
     harvest = Harvest()
     async with httpx.AsyncClient(
         timeout=FETCH_TIMEOUT,
@@ -358,6 +379,14 @@ async def harvest_site(url: str, *, claude: Claude | None = None) -> Harvest:
     harvest.address = data.address
     harvest.phone = data.phone
     harvest.about = data.about
+
+    # Ranked once, here, rather than per build: which photograph is the best
+    # one is a fact about the photographs, and three art directions built from
+    # the same harvest would otherwise pay to answer it three times. Fails open
+    # by contract — the crawl order it replaces is a working order.
+    from loom.services.image_pick import rank
+
+    harvest.images = await rank(harvest.images, business=business, claude=claude)
     return harvest
 
 
@@ -372,7 +401,11 @@ async def harvest_lead(lead: dict, *, claude: Claude | None = None) -> Harvest:
         return Harvest(
             error="No website to read — check their Instagram by hand for a menu."
         )
-    return await harvest_site(url, claude=claude)
+    return await harvest_site(
+        url,
+        business=lead.get("google_name") or lead.get("site_title") or "",
+        claude=claude,
+    )
 
 
 async def harvest_many(leads: list[dict], concurrency: int = 3) -> list[Harvest]:

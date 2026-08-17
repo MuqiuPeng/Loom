@@ -265,7 +265,7 @@ class Claude:
 
     async def extract_model(
         self,
-        prompt: str,
+        prompt: "str | list[dict]",
         schema: type["BaseModel"],
         *,
         model: Model = Model.HAIKU,
@@ -294,6 +294,9 @@ class Claude:
             "description": f"Record the extracted {schema.__name__}.",
             "input_schema": schema.model_json_schema(),
         }
+        # A list is already a content-block sequence — images interleaved with
+        # text — and is passed through untouched. A plain string is the common
+        # case and becomes one text block.
         messages: list[dict] = [{"role": "user", "content": prompt}]
 
         last_error: Exception | None = None

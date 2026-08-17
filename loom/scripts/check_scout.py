@@ -310,10 +310,61 @@ def email_checks() -> None:
     )
 
 
+async def image_pick_checks() -> None:
+    """The ranker's contract, without looking at a single picture.
+
+    What the model decides needs eyes and cannot be asserted here. What it is
+    allowed to decide can: a demo must never be handed a URL the crawler did
+    not find, and must never be left with no pictures because a model call
+    timed out.
+    """
+    from loom.services.image_pick import Ranked, _clean, rank
+
+    print("\n── image ranking ──")
+
+    urls = ["a.jpg", "b.jpg", "c.jpg"]
+
+    check(_clean([2, 0], 3) == [2, 0], "the model's order is the order")
+    check(_clean([1, 1, 0], 3) == [1, 0], "a repeated index is taken once")
+    check(_clean([9, -1, 0], 3) == [0], "an out-of-range index is dropped")
+
+    class Stub:
+        def __init__(self, result=None, boom=False):
+            self.result, self.boom = result, boom
+
+        async def extract_model(self, *a, **k):
+            if self.boom:
+                raise RuntimeError("the merchant's server refused the fetch")
+            return self.result
+
+    ranked = await rank(urls, claude=Stub(Ranked(keep=[2, 0])))
+    check(ranked == ["c.jpg", "a.jpg"], "indices become the URLs they stood for")
+
+    # The failure that must not take a build down with it.
+    check(
+        await rank(urls, claude=Stub(boom=True)) == urls,
+        "an unreachable image leaves the crawl order alone",
+    )
+    check(
+        await rank(urls, claude=Stub(Ranked(keep=[]))) == urls,
+        "rejecting every photo is not believed",
+    )
+    # A model cannot introduce a picture, only choose among the ones found.
+    check(
+        set(await rank(urls, claude=Stub(Ranked(keep=[99, 1])))) <= set(urls),
+        "no URL comes back that the crawler did not find",
+    )
+    check(
+        await rank(["only.jpg"], claude=Stub(boom=True)) == ["only.jpg"],
+        "one image is not worth a model call",
+    )
+
+
 async def main() -> int:
     audit_checks()
     email_checks()
     await enrichment_checks()
+    await image_pick_checks()
     if failures:
         print(f"\n{len(failures)} check(s) failed")
         return 1
