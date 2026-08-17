@@ -530,6 +530,10 @@ class ScoutLeadModel(Base):
     draft_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     drafted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     contacted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # The one follow-up, if it has gone. Its own column rather than a counter:
+    # the template is labelled "once, then stop" and the body promises as much,
+    # so what has to be recorded is whether it happened, not how often.
+    followed_up_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

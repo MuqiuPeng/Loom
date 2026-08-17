@@ -170,4 +170,28 @@ async def poll_loop() -> None:
             return
         except Exception:
             logger.exception("reply poll crashed; retrying next interval")
+
+        # Follow-ups ride the same tick, and strictly after the mailbox has
+        # been read. The order is the whole safeguard: a reply that arrived in
+        # the last hour marks the lead `replied` in the pass above, which is
+        # what stops the follow-up below. Run them the other way round and the
+        # first thing a customer who answered yesterday gets is a nudge asking
+        # whether they saw it.
+        try:
+            await _follow_up_tick()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.exception("follow-up run crashed; retrying next interval")
+
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
+
+
+async def _follow_up_tick() -> None:
+    """One follow-up pass, quiet unless it did something."""
+    from loom.api import get_storage
+    from loom.services import follow_up
+
+    result = await follow_up.send_due(get_storage())
+    if result.get("sent") or result.get("held"):
+        logger.info("follow-up: %s", result)

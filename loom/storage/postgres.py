@@ -1119,6 +1119,21 @@ class PostgresDataStorage(DataStorage):
             "demo_public": row.demo_public,
             "draft_subject": row.draft_subject,
             "draft_body": row.draft_body,
+            # Every stage timestamp. They were absent here while being present
+            # in the list projection, so a lead fetched by id looked like one
+            # nothing had ever been done to — harvested, planned and contacted
+            # all reading null on a row where all three had happened. Nothing
+            # failed loudly: the follow-up scheduler reads contacted_at, and
+            # would have found no lead had ever been contacted and sent
+            # nothing, forever, without an error.
+            "harvested_at": row.harvested_at.isoformat() if row.harvested_at else None,
+            "planned_at": row.planned_at.isoformat() if row.planned_at else None,
+            "demo_built_at": row.demo_built_at.isoformat() if row.demo_built_at else None,
+            "drafted_at": row.drafted_at.isoformat() if row.drafted_at else None,
+            "contacted_at": row.contacted_at.isoformat() if row.contacted_at else None,
+            "followed_up_at": (
+                row.followed_up_at.isoformat() if row.followed_up_at else None
+            ),
         }
 
     # Fields a pipeline stage is allowed to write back.
@@ -1126,6 +1141,7 @@ class PostgresDataStorage(DataStorage):
         "status", "notes", "emails", "harvest", "harvested_at", "demo_slug", "demo_url", "demo_html", "demo_variants", "demo_active",
         "demo_plan", "planned_at", "demo_public",
         "demo_built_at", "draft_subject", "draft_body", "drafted_at", "contacted_at",
+        "followed_up_at",
         "email_sources",
     )
 
