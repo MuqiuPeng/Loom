@@ -1,0 +1,97 @@
+# Verification only. Nothing here deploys.
+#
+# Deploying stays a deliberate act — `fly deploy` and `vercel --prod` are run
+# by a person who has decided the change should go live. What was missing was
+# not automation of that decision but a floor under it: the check scripts,
+# ruff and tsc all existed and all had to be remembered.
+#
+# The bug that prompted this is the shape to keep in mind. A styles file
+# caught mid-write produced an empty art-direction catalogue, an empty plan
+# was stored as a success, and a button greyed out permanently with nothing
+# on screen explaining it. Every suite was green at the time, because no
+# assertion covered "the config could not be read". CI would not have caught
+# that either — but it is the place that assertion now lives, and the place
+# the next one will.
+#
+# So: no scheduled runs, no deploy keys, no secrets. If this workflow ever
+# needs a secret, something has been added to it that does not belong.
+
+name: checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  # A second push supersedes the first; there is no value in finishing a run
+  # for a commit nobody will look at again.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # The package declares its own extras; there is no requirements.txt.
+      # Playwright is deliberately not installed: the only thing that needs a
+      # browser is the render audit, which degrades to "skipped" without one,
+      # and pulling Chromium would add minutes to every run for a check these
+      # scripts do not make.
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[db,dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      # Deliberately not `pytest tests` alone. The three check scripts assert
+      # things the unit tests do not: that a template still contains every
+      # section, that an audit does not invent a finding, that a reply quoting
+      # our own signature is not read as an opt-out. They run offline — no
+      # network, no database, no API keys — which is why they can run here.
+      - name: Unit tests
+        run: pytest tests -q
+
+      - name: Resume templates
+        run: python -m loom.scripts.check_templates
+
+      - name: Site audit and scout enrichment
+        run: python -m loom.scripts.check_scout
+
+      - name: Reply handling, consent basis and the opt-out gate
+        run: python -m loom.scripts.check_replies
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Types before tests: a type error is the failure most likely to reach
+      # production unnoticed, because `next build` on Vercel is the only other
+      # thing that would catch it and by then it has been deployed.
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
