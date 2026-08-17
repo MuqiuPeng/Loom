@@ -134,12 +134,23 @@ def enabled() -> bool:
 
 
 def imap_host() -> str:
-    explicit = os.environ.get("IMAP_HOST")
+    explicit = os.environ.get("IMAP_HOST") or os.environ.get("LARK_IMAP")
     if explicit:
         return explicit
     from loom.services.mailer import SMTP_HOST
 
     return _IMAP_DEFAULTS.get(SMTP_HOST, SMTP_HOST.replace("smtp.", "imap.", 1))
+
+
+def imap_port() -> int:
+    """993 everywhere worth supporting, but read rather than assumed.
+
+    IMAP has no STARTTLS-on-a-different-port split the way SMTP does — 993 is
+    implicit TLS and is what every host here answers on — so this exists to
+    honour a configuration that says so out loud, not because a second port is
+    expected.
+    """
+    return int(os.environ.get("IMAP_PORT") or os.environ.get("LARK_IMAP_PORT") or 993)
 
 
 @dataclass
@@ -255,7 +266,7 @@ def _fetch_blocking(days: int, limit: int) -> list[Reply]:
     host = imap_host()
     since = (datetime.now(UTC) - timedelta(days=days)).strftime("%d-%b-%Y")
 
-    connection = imaplib.IMAP4_SSL(host, timeout=30)
+    connection = imaplib.IMAP4_SSL(host, imap_port(), timeout=30)
     try:
         connection.login(address, password)
         # readonly: this must never mark anything seen. The mailbox belongs to

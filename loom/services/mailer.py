@@ -39,14 +39,28 @@ from loom.services.dns_check import deliverable
 # The env names still say GMAIL_ for compatibility with what is already in
 # .env; SMTP_ADDRESS and SMTP_PASSWORD are read first so a non-Google host can
 # be configured without keeping a misleading name.
-SMTP_HOST = os.environ.get("SMTP_HOST") or "smtp.gmail.com"
-SMTP_PORT = int(os.environ.get("SMTP_PORT") or 587)
+SMTP_HOST = (
+    os.environ.get("SMTP_HOST") or os.environ.get("LARK_SMTP") or "smtp.gmail.com"
+)
+SMTP_PORT = int(os.environ.get("SMTP_PORT") or os.environ.get("LARK_SMTP_PORT") or 587)
 
 
 def _credentials() -> tuple[str, str]:
+    """The sending address and its password, under whichever name they were set.
+
+    Three spellings, because three were already in use by the time this needed
+    to read them all: GMAIL_ from when Gmail was the only transport, SMTP_ from
+    when it stopped being, and LARK_ from the mailbox that is actually sending
+    now. Reading all three costs one `or` and saves someone renaming a working
+    configuration to satisfy the code.
+    """
     return (
-        os.environ.get("SMTP_ADDRESS") or os.environ.get("GMAIL_ADDRESS", ""),
-        os.environ.get("SMTP_PASSWORD") or os.environ.get("GMAIL_APP_PASSWORD", ""),
+        os.environ.get("SMTP_ADDRESS")
+        or os.environ.get("LARK_EMAIL")
+        or os.environ.get("GMAIL_ADDRESS", ""),
+        os.environ.get("SMTP_PASSWORD")
+        or os.environ.get("LARK_EMAIL_AUTH")
+        or os.environ.get("GMAIL_APP_PASSWORD", ""),
     )
 
 # Well under Gmail's documented 500/day, because the ceiling was never the
@@ -181,6 +195,17 @@ def _send_blocking(
 ) -> str:
     message = _build(to, subject, body, in_reply_to=in_reply_to)
     address, password = _credentials()
+    # 465 is implicit TLS: the connection is encrypted from the first byte and
+    # there is no STARTTLS to issue — calling it there fails with a protocol
+    # error that reads like a bad password. 587 negotiates upward instead.
+    # Lark answers on both, and its own documentation names 465, so which one
+    # is configured is not something to assume.
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.login(address, password)
+            server.send_message(message)
+        return str(message["Message-ID"])
+
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
         server.starttls()
         server.login(address, password)
