@@ -47,8 +47,12 @@ LOAD_TIMEOUT_MS = 15_000
 # How long to keep waiting for a client-rendered page to put words on itself.
 # Generous, because the cost is paid only by pages that arrived empty, and the
 # alternative to waiting is harvesting nothing from them at all.
-SETTLE_TIMEOUT_MS = 12_000
+SETTLE_TIMEOUT_MS = 20_000
 POLL_INTERVAL_MS = 500
+# Consecutive identical measurements before the page is called finished. Two
+# rather than one because a render can pause mid-flight — a font loading, a
+# lazy section resolving — and a single flat sample is not evidence of an end.
+STEADY_SAMPLES = 2
 
 # Chromium refuses to start as root without this, which is exactly how it runs
 # in the container. Verified against production rather than assumed: the first
@@ -72,23 +76,36 @@ async def _wait_for_text(page) -> None:
     "Loading... (480) 600-7528" under it: the socket count settled while the
     page was still showing its spinner.
 
-    So wait for the thing being waited for. The page is polled for text and
-    the first sample that clears the shell threshold ends it, which on a fast
-    site costs one poll interval and on a slow one costs no more than a fixed
-    budget. A page that never gets there returns whatever it has, and the
-    caller keeps the HTML it already fetched.
+    So wait for the thing being waited for — and wait for it to stop, not to
+    start. The page is polled for text and ends when the count has held still
+    across consecutive samples, because a page that is filling in progressively
+    crosses any fixed threshold long before it is finished. A page that never
+    settles returns whatever it has, and the caller keeps the HTML it already
+    fetched.
     """
-    deadline = SETTLE_TIMEOUT_MS
     waited = 0
-    while waited < deadline:
+    previous = -1
+    steady = 0
+    while waited < SETTLE_TIMEOUT_MS:
         try:
             length = await page.evaluate(
                 "() => (document.body && document.body.innerText || '').trim().length"
             )
         except Exception:
             return
-        if length >= THIN_TEXT:
-            return
+        # Growth, not a threshold. Returning at the first sample above the
+        # shell floor is what an earlier version did, and it stopped the moment
+        # the page started filling rather than when it had finished: the same
+        # square.site page measured 710, 864 and 2471 characters on three
+        # consecutive runs of identical code. A harvest built on the first of
+        # those has a third of the menu and no way to know it.
+        if length >= THIN_TEXT and length == previous:
+            steady += 1
+            if steady >= STEADY_SAMPLES:
+                return
+        else:
+            steady = 0
+        previous = length
         await page.wait_for_timeout(POLL_INTERVAL_MS)
         waited += POLL_INTERVAL_MS
 

@@ -1898,10 +1898,23 @@ async def _require_lead(
 @app.post("/api/scout/leads/{lead_id}/harvest")
 async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
     """Read the business's own pages for menu, hours, images and socials."""
-    from loom.services.site_harvest import harvest_lead
+    from loom.services.site_harvest import harvest_lead, is_regression
 
     storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     harvest = await harvest_lead(lead)
+
+    # A re-harvest that comes back with less than the stored one is far more
+    # likely a slow render than a business that deleted its menu, so the
+    # previous harvest is kept and the caller is told why rather than being
+    # handed a quietly emptied lead.
+    regression = is_regression(lead.get("harvest"), harvest)
+    if regression:
+        return {
+            "harvest": lead.get("harvest"),
+            "usable": True,
+            "kept_previous": regression,
+        }
+
     await storage.update_scout_lead(
         lead_id,
         {"harvest": harvest.model_dump(mode="json"), "harvested_at": datetime.utcnow()},

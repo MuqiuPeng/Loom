@@ -360,6 +360,41 @@ async def image_pick_checks() -> None:
     )
 
 
+def harvest_regression_checks() -> None:
+    """A thinner harvest must not replace a thicker one."""
+    from loom.services.site_harvest import Harvest, MenuItem, _images, is_regression
+
+    print("\n-- harvest regressions --")
+
+    stored = {"menu": [{"name": "a"}] * 36, "images": ["i"] * 3,
+              "pages_read": ["p"] * 3, "about": "who we are"}
+    full = Harvest(menu=[MenuItem(name="a")] * 36, images=["i"] * 3,
+                   pages_read=["p"] * 3, about="who we are")
+
+    check(not is_regression(None, Harvest()), "the first harvest is always kept")
+    check(not is_regression(stored, full), "an identical re-harvest is kept")
+    check(not is_regression(stored, full.model_copy(update={
+        "menu": [MenuItem(name="a")] * 40})), "more is kept")
+
+    # The one that actually happened: 36 items to nothing on identical code.
+    check(is_regression(stored, full.model_copy(update={"menu": []})),
+          "a menu that vanished is a failed render, not news")
+    check(is_regression(stored, full.model_copy(update={"about": None})),
+          "so is prose that was there a minute ago")
+    check(is_regression(stored, Harvest(error="home page unreadable")),
+          "an errored harvest never replaces a good one")
+
+    # Field by field, not on a total: gaining images does not pay for a menu.
+    traded = full.model_copy(update={"menu": [], "images": ["i"] * 99})
+    check(is_regression(stored, traded), "a trade is not an improvement")
+
+    # The hero on a page built entirely of CSS backgrounds. The delimiters are
+    # HTML-escaped because the style attribute is itself quoted.
+    css = '<div style="background: url(&quot;http://s.test/hero.jpg&quot;) 50%"></div>'
+    check(_images(css, "http://s.test/") == ["http://s.test/hero.jpg"],
+          "an escaped-quote CSS background yields a usable URL")
+
+
 def geography_checks() -> None:
     """Leads must be in the country that was searched, and URLs must be URLs."""
     from loom.services.company_scout import Candidate, _in_country
@@ -479,6 +514,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    harvest_regression_checks()
     geography_checks()
     menu_doc_checks()
     await render_fallback_checks()

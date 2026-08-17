@@ -286,7 +286,16 @@ def _images(html: str, base: str) -> list[str]:
     best: dict[str, tuple[int, str]] = {}
     for src in candidates:
         # Attributes arrive HTML-escaped; &amp; in a URL breaks the request.
-        src = unescape(src.strip())
+        # Unescape first, then peel the delimiters off. An inline style writes
+        #     style="background: url(&quot;http://…/hero.jpg&quot;)"
+        # because the attribute itself is double-quoted, so the capture keeps
+        # the escaped quotes and unescape turns them into real ones. Those are
+        # the delimiter leaking in, not corruption: stripped, the address is
+        # sound. Rejecting them outright — which an earlier pass at this did —
+        # discards the only photograph on a page built entirely of CSS
+        # backgrounds, which is how pvgrinds.com went from one broken image to
+        # none at all.
+        src = unescape(src.strip()).strip("\"'").strip()
         if not src or src.startswith("data:"):
             continue
         # A quote, a space or a backslash inside what should be one URL means
@@ -343,6 +352,42 @@ def _socials(html: str) -> dict[str, str]:
             continue
         found.setdefault(platform, handle)
     return found
+
+
+def is_regression(previous: dict | None, fresh: "Harvest") -> str:
+    """Why the fresh harvest should not replace the stored one, or "".
+
+    A re-harvest is not always an improvement. Rendering a client-side site
+    depends on how fast somebody else's server answers today, and a page that
+    times out yields a harvest that is empty rather than one that says so.
+    Espresso! Coffee Bar went from thirty-six menu items to zero on a second
+    run of identical code — the site had not changed, the render had.
+
+    So a fresh harvest that carries less than the stored one is treated as a
+    failed attempt rather than as news. It costs the case where a business
+    genuinely deletes its menu, which is rare, recoverable by harvesting again,
+    and in any event better than a demo silently rebuilt with nothing in it.
+
+    Compared field by field rather than on a total: a harvest that gains images
+    while losing the whole menu is not an even trade.
+    """
+    if not previous:
+        return ""
+    if fresh.error:
+        return f"the fresh harvest failed ({fresh.error[:60]})"
+
+    for label, before, after in (
+        ("menu items", len(previous.get("menu") or []), len(fresh.menu)),
+        ("images", len(previous.get("images") or []), len(fresh.images)),
+        ("pages", len(previous.get("pages_read") or []), len(fresh.pages_read)),
+    ):
+        if after < before:
+            return f"{label} went from {before} to {after}"
+
+    for label in ("about", "hours", "address", "phone"):
+        if previous.get(label) and not getattr(fresh, label):
+            return f"{label} was there before and is not now"
+    return ""
 
 
 async def harvest_site(
