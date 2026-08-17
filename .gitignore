@@ -92,3 +92,6 @@ frontend/node_modules/
 # Full working copies of this repo, created per task. Committing them would
 # vendor the entire codebase inside itself.
 .claude/worktrees/
+
+# Next/tsc build artefact — regenerated on every build, never reviewed.
+*.tsbuildinfo

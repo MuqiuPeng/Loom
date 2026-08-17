@@ -113,6 +113,15 @@ python -m pytest tests -q          # 65 tests; route-scoping guard lives here
 cd dashboard && npx tsc --noEmit && npm test    # 13 vitest cases
 ```
 
+```bash
+python -m loom.scripts.check_deployed   # what is committed but not yet running
+```
+
+CI runs the checks on every push and deploys nothing, so the repository and the
+running system drift apart quietly — `check_deployed` is what says by how much.
+It reports and never acts; the database half of it is exact, the two code
+halves compare timestamps because neither platform records a commit.
+
 `tests/test_multi_user.py` covers isolation between two accounts;
 `dashboard/lib/acting-user.test.ts` covers which account a proxied request acts
 as — a bug there served a signed-in user somebody else's profile, one hop
