@@ -1,0 +1,23 @@
+{# Near-black with two clashing neons, dense menu grid, scanlines. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#0b0b10;color:#f2f2f7;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
+.hero{padding:3.5rem 1.5rem 2rem}
+h1{font-family:Impact,'Arial Black',sans-serif;font-size:clamp(2.6rem,13vw,7rem);
+  text-transform:uppercase;line-height:.9;margin:0;color:#fff;
+  text-shadow:0 0 24px {{ palette.accent }}}
+.lede{margin-top:1.2rem;max-width:34rem;opacity:.8}
+.hero-img{margin-top:2rem;filter:saturate(1.3) contrast(1.1)}
+h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.2em;
+  color:{{ palette.accent }};margin:0 0 1.2rem}
+h3{font-size:.9rem;text-transform:uppercase;letter-spacing:.1em;
+  margin:1.6rem 0 .6rem;opacity:.8}
+.band{border-top:2px solid {{ palette.accent }};padding:2.2rem 0}
+.item{border-bottom:1px solid rgba(255,255,255,.12)}
+.item .price{color:#fff;font-weight:700}
+.facts a{color:{{ palette.accent }}}
+.facts-grid{display:grid;gap:1.5rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+.closing{background:rgba(255,255,255,.05)}
+{% endblock %}

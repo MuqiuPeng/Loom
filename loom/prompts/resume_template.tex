@@ -1,7 +1,7 @@
 \documentclass[a4paper,10pt]{article}
 \usepackage[a4paper, left=0.1in, right=0.1in, top=0.1in, bottom=0.1in]{geometry}
 \usepackage{enumitem}
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{titlesec}
 \usepackage{fontenc}
 \usepackage{inputenc}
@@ -45,34 +45,12 @@
 {%- endfor %}
 \end{itemize}
 
-%% ── EDUCATION ───────────────────────────────────────────────────────
-\section*{Education}
-{%- for edu in education %}
-
-\textbf{ {{- edu.institution | latex -}} } \hfill {{ edu.period | latex }} \\
-{{ edu.degree_abbrev | latex }}
-{%- if not loop.last %}
-
-\vspace{4pt}
-{%- endif %}
-{%- endfor %}
-
-%% ── CERTIFICATIONS ──────────────────────────────────────────────────
-{%- if certifications %}
-\section*{Certifications}
-\begin{itemize}[leftmargin=0.15in]
-{%- for cert in certifications %}
-    \item {{ cert.year | latex }}, {{ cert.name | latex }}
-{%- endfor %}
-\end{itemize}
-{%- endif %}
-
 %% ── EXPERIENCE ──────────────────────────────────────────────────────
 \section*{Experience}
 {%- for exp in experiences %}
 
 \textbf{ {{- exp.title | latex -}} } --- \textit{ {{- exp.company | latex -}} }
-\hfill \textit{ {{- exp.period | latex -}} }
+\hfill \textit{ {{- exp.period | latex -}} }{%- if exp.location %} \textit{ {{- ' | ' ~ exp.location | latex -}} }{% endif %}
 \begin{itemize}[leftmargin=0.15in]
 {%- for bullet in exp.bullets %}
     \item {{ bullet | latex }}
@@ -95,6 +73,28 @@
 {%- endfor %}
 \end{itemize}
 {%- endfor %}
+{%- endif %}
+
+%% ── EDUCATION ───────────────────────────────────────────────────────
+\section*{Education}
+{%- for edu in education %}
+
+\textbf{ {{- edu.institution | latex -}} } \hfill {{ edu.period | latex }} \\
+{{ edu.degree_abbrev | latex }}
+{%- if not loop.last %}
+
+\vspace{4pt}
+{%- endif %}
+{%- endfor %}
+
+%% ── CERTIFICATIONS ──────────────────────────────────────────────────
+{%- if certifications %}
+\section*{Certifications}
+\begin{itemize}[leftmargin=0.15in]
+{%- for cert in certifications %}
+    \item {{ cert.year | latex }}, {{ cert.name | latex }}
+{%- endfor %}
+\end{itemize}
 {%- endif %}
 
 \end{document}

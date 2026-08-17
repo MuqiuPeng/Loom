@@ -115,7 +115,7 @@ export default function JobDetail({ job, analyzeResult, onDelete, onGenerated }:
         <summary className="text-xs font-semibold text-gray-500 cursor-pointer hover:text-indigo-600">
           Full Job Description
         </summary>
-        <div className="bg-gray-50 rounded-md p-3 text-xs text-gray-600 whitespace-pre-wrap max-h-60 overflow-y-auto mt-1.5">
+        <div className="bg-gray-50 rounded-md p-3 text-xs text-gray-600 whitespace-pre-wrap max-h-60 overflow-y-auto overflow-x-auto mt-1.5">
           {job.raw_text}
         </div>
       </details>

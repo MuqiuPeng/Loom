@@ -10,8 +10,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root. Unanchored, `lib/` matches a directory of that
+# name at any depth — which silently excluded all of dashboard/lib, the API
+# client and the sign-in allowlist among it, from every commit ever made.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -47,6 +50,12 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+# Any copy of an env file, however it is suffixed — these are full copies,
+# secrets and all. Neither `.env` nor `*.bak` matched `.env.bak.1786691251`,
+# so those sat untracked and one `git add -A` away from being published.
+.env.*
+!.env.example
+dashboard/.env.local*
 *.pem
 credentials.json
 
@@ -70,3 +79,16 @@ dashboard/node_modules/
 frontend/.next/
 frontend/node_modules/
 *.bak
+
+# Scratch space for inline email attachments (Lark requires relative paths)
+.loom-tmp/
+
+# Agent tooling. Listed piece by piece rather than ignoring `.claude/` whole,
+# so shared project config (settings.json, a project-specific skill) can still
+# be committed later without fighting this file.
+.claude/settings.local.json
+.claude/skills/
+.agents/skills/
+# Full working copies of this repo, created per task. Committing them would
+# vendor the entire codebase inside itself.
+.claude/worktrees/

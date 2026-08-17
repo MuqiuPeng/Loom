@@ -1,0 +1,130 @@
+{
+  "_comment": [
+    "Fixed formats with filled slots, not a fresh composition each time.",
+    "",
+    "Why: a model writing every email from scratch is a bet, taken again on",
+    "every send, that it lands the tone. Templates make the wording a thing you",
+    "improve once and then keep. They also cost nothing to produce — the audit",
+    "findings are already written for the owner to read, so most of these need",
+    "no model call at all.",
+    "",
+    "Slots are {braced}. Anything left unfilled is an error, never sent — see",
+    "loom/services/email_templates.py. Edit the wording freely; keep the slot",
+    "names.",
+    "",
+    "Legal note for the outreach templates: pitching work is a commercial",
+    "electronic message under the Spam Act, so sender identity and an opt-out",
+    "line are not optional. Both live in `signature` and are appended",
+    "automatically. Do not remove them from a template that goes to someone who",
+    "has not replied yet."
+  ],
+  "sender": {
+    "name": "Robin Peng",
+    "email": "robin@robindev.org",
+    "phone": "",
+    "business": "RobinDev"
+  },
+  "defaults": {
+    "price": "AUD $900",
+    "price_with_extras": "AUD $1,400",
+    "timeline": "about a week",
+    "revisions": "two rounds of changes"
+  },
+  "signature": {
+    "outreach": "\n\n—\n{sender_name}\n{sender_business}\n{sender_email}\n\nIf you'd rather not hear from us, reply with \"unsubscribe\" and we'll remove you from all our marketing email within 5 business days.",
+    "conversation": "\n\n—\n{sender_name}\n{sender_email}"
+  },
+  "templates": {
+    "first_contact": {
+      "label": "First contact",
+      "needs_signature": "outreach",
+      "subject": "{business} — {subject_hook}",
+      "body": "Hi,\n\nI had a look at {business} on my phone and {problem_sentence}.\n\nI rebuilt it as it could be — your own name and details, built from what's already on your site:\n{demo_url}\n\nIt's a mock-up, not a live site, and it takes me {timeline} to finish properly for {price}. One payment, no monthly fee, and you own it.\n\nWorth a look?"
+    },
+    "first_contact_no_site": {
+      "label": "First contact — no website",
+      "needs_signature": "outreach",
+      "subject": "{business} — a website, already half built",
+      "body": "Hi,\n\n{business} doesn't come up with a website when people search for you, so anyone deciding where to go tonight is choosing from whoever does.\n\nI built one to show you what it could look like:\n{demo_url}\n\nThe layout is real; the photos and menu are placeholders until you send me yours. Finished properly it's {price} — one payment, no monthly fee, and it's yours.\n\nWorth a look?"
+    },
+    "follow_up": {
+      "label": "Follow-up (once, then stop)",
+      "needs_signature": "outreach",
+      "subject": "Re: {business}",
+      "body": "Hi,\n\nJust in case my last note got buried — the mock-up I made for {business} is still up:\n{demo_url}\n\nHappy to take it down if it's not of interest; just say so and I won't write again."
+    },
+    "quote": {
+      "label": "Quote after a reply",
+      "needs_signature": "conversation",
+      "subject": "{business} — what's involved",
+      "body": "Hi {contact_name},\n\nGood to hear from you. Here's what I'd do:\n\n· Build out the site you saw, with your real photos, menu and hours\n· Set it up on your own domain, ready for Google\n· {revisions} after it's live, so we get it right\n\n{price} in total. One payment, nothing monthly. {timeline_capitalised} from when you send me the content.\n\nIf you'd like a booking form or online ordering as well, that's {price_with_extras} all in.\n\nWhat I need from you to start: your logo if you have one, a few photos, and your menu in any form — a photo of the printed one is fine.\n\nHappy to talk it through on the phone if that's easier."
+    },
+    "content_request": {
+      "label": "Chasing content",
+      "needs_signature": "conversation",
+      "subject": "{business} — ready when you are",
+      "body": "Hi {contact_name},\n\nEverything's set up on my end. Whenever you get a chance, send through:\n\n· Your menu — a photo of the printed one is fine\n· A few photos of the room or the food, from a phone is fine\n· Your logo, if you have a file for it\n\nI'll have the first version back to you in {timeline} of receiving them."
+    },
+    "handover": {
+      "label": "Handover",
+      "needs_signature": "conversation",
+      "subject": "{business} — you're live",
+      "body": "Hi {contact_name},\n\n{business} is live:\n{live_url}\n\nA few things worth knowing:\n\n· It works on phones, tablets and desktops — have a look on yours\n· Google can find it; it may take a few days to show up in search\n· The domain and everything on it belongs to you\n\nYou've got {revisions} included — send me anything you want changed and I'll do it, no charge.\n\nThanks for the work. If it does what you wanted, a word to anyone else on the street who needs one would mean a lot."
+    },
+    "revision_ack": {
+      "label": "Confirming changes",
+      "needs_signature": "conversation",
+      "subject": "Re: {business}",
+      "body": "Hi {contact_name},\n\nGot it — making these changes:\n\n{change_list}\n\nI'll have them up within a day and let you know when they're done."
+    }
+  },
+  "problem_phrases": {
+    "_note": "How each audit finding reads inside a sentence, owner-facing. Falls back to the finding's own detail text. contact_mismatch is left out on purpose — its own detail names both numbers, which reads stronger than a generic clause.",
+    "mobile_broken": "the page runs off the side of the screen — you have to scroll sideways to read it",
+    "not_mobile_ready": "it comes up as a shrunken desktop page, so everything's too small to tap",
+    "dead": "the address on your Google listing doesn't load at all",
+    "unreachable": "the site wouldn't load for me",
+    "timeout": "it took so long to load that most people would have given up",
+    "ssl_invalid": "the browser blocks it with a security warning before anything shows",
+    "error_page": "the home page comes back with an error",
+    "renders_empty": "the page loads but almost nothing appears",
+    "broken_images": "several of the photos don't load — you just get empty boxes",
+    "no_website": "there's no website on your Google listing at all",
+    "social_only": "the only thing listed is a Facebook page",
+    "placeholder": "it still shows the 'coming soon' placeholder",
+    "no_https": "browsers mark it as 'not secure'",
+    "free_subdomain": "it's on a free builder's address rather than your own",
+    "slow": "it takes a few seconds to appear, which is a long time on mobile data",
+    "stale": "it hasn't been touched in years — the footer still shows an old year",
+    "thin": "there's almost nothing on it",
+    "tiny_text": "the text is too small to read on a phone",
+    "phone_not_tappable": "your phone number is on there as plain text — on a mobile you can't tap it to call, you have to memorise it and type it back in",
+    "no_link_preview": "when someone shares your address on Facebook or in a WhatsApp group it comes up as an empty grey box instead of a photo of the place",
+    "no_favicon": "there's no little icon on the browser tab, so it shows a blank sheet of paper next to your name"
+  },
+  "min_problem_weight": 3,
+  "subject_hooks": {
+    "_note": "Subject line per finding code, keyed the same way as problem_phrases. Falls back to `default` when a code has no hook.",
+    "default": "your website",
+    "mobile_broken": "your site on a phone",
+    "not_mobile_ready": "your site on a phone",
+    "tiny_text": "your site on a phone",
+    "renders_empty": "your site on a phone",
+    "phone_not_tappable": "the phone number on your site",
+    "contact_mismatch": "two different numbers for you",
+    "no_link_preview": "how your link looks when shared",
+    "dead": "your website isn't loading",
+    "unreachable": "your website isn't loading",
+    "timeout": "your website isn't loading",
+    "ssl_invalid": "the security warning on your site",
+    "error_page": "your home page is erroring",
+    "placeholder": "the 'coming soon' page",
+    "social_only": "a website of your own",
+    "free_subdomain": "your web address",
+    "no_https": "the 'not secure' warning on your site",
+    "slow": "how long your site takes to load",
+    "stale": "your website",
+    "thin": "your website",
+    "broken_images": "the photos on your site"
+  }
+}

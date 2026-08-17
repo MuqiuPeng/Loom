@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Header from "@/components/layout/Header";
+import ResumeDetail from "@/components/resume-tailor/resumes/ResumeDetail";
+import { useCollapseNavWhile } from "@/lib/nav-collapse";
+import { useDismissOnOutsideClick } from "@/lib/use-dismiss";
 import { api } from "@/lib/api";
 import type { ResumeArtifact } from "@/lib/types";
 
@@ -14,7 +17,31 @@ export default function ResumesPage() {
   );
   const [search, setSearch] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genLang, setGenLang] = useState<"en" | "zh">("en");
+
+  const handleGenerateGeneral = async () => {
+    if (generating) return;
+    setGenerating(true);
+    try {
+      const { task_id } = await api.tasks.generateGenericResume({
+        language: genLang,
+        format: "markdown",
+      });
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const t = await api.tasks.get(task_id);
+        mutate();
+        if (t.status === "completed" || t.status === "failed") break;
+      }
+    } catch {
+      // task polling failed; list refresh below still shows current state
+    } finally {
+      setGenerating(false);
+      mutate();
+    }
+  };
 
   // Filter by search
   const filtered = useMemo(() => {
@@ -44,7 +71,29 @@ export default function ResumesPage() {
     return groups;
   }, [filtered, groupBy]);
 
+  const selected = useMemo(
+    () => (data ?? []).find((r) => r.id === selectedId) ?? null,
+    [data, selectedId]
+  );
+
+  // The preview wants the width; the app nav steps aside while it is open.
+  useCollapseNavWhile(!!selected);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dismiss = useCallback(() => setSelectedId(null), []);
+  useDismissOnOutsideClick(panelRef, dismiss, !!selected);
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected]);
+
   const handleDelete = async (id: string) => {
+    if (selectedId === id) setSelectedId(null);
     await api.resumes.delete(id);
     mutate();
   };
@@ -76,7 +125,7 @@ export default function ResumesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search resumes..."
-          className="px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64"
+          className="px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64"
         />
         <div className="flex items-center gap-1 text-xs text-gray-500">
           <span>Group:</span>
@@ -93,6 +142,28 @@ export default function ResumesPage() {
               {g === "none" ? "All" : g.charAt(0).toUpperCase() + g.slice(1)}
             </button>
           ))}
+        </div>
+        <div className="flex items-center">
+          <select
+            value={genLang}
+            onChange={(e) => setGenLang(e.target.value as "en" | "zh")}
+            disabled={generating}
+            className="px-2 py-1.5 text-sm border border-gray-200 rounded-l-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
+          >
+            <option value="en">EN</option>
+            <option value="zh">中文</option>
+          </select>
+          <button
+            onClick={handleGenerateGeneral}
+            disabled={generating}
+            className={`px-3 py-1.5 text-sm rounded-r-md transition-colors ${
+              generating
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 text-white hover:bg-indigo-700"
+            }`}
+          >
+            {generating ? "Generating…" : "General Resume (no JD)"}
+          </button>
         </div>
         <span className="text-xs text-gray-400 ml-auto">
           {filtered.length} resume{filtered.length !== 1 ? "s" : ""}
@@ -117,7 +188,7 @@ export default function ResumesPage() {
         </div>
       )}
 
-      {/* Grouped list */}
+      {/* Grouped tables */}
       {data && filtered.length > 0 && (
         <div className="space-y-6">
           {Object.entries(grouped).map(([group, items]) => (
@@ -127,77 +198,98 @@ export default function ResumesPage() {
                   {group}
                 </h3>
               )}
-              <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-                {items.map((r) => (
-                  <div key={r.id}>
-                    {/* Row */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+              <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-500">
+                    <tr className="text-left">
+                      <th className="px-3 py-2 font-medium">Role</th>
+                      <th className="px-3 py-2 font-medium w-40">Company</th>
+                      <th className="px-3 py-2 font-medium w-16">Lang</th>
+                      <th className="px-3 py-2 font-medium w-16">PDF</th>
+                      <th className="px-3 py-2 font-medium w-36">Created</th>
+                      <th className="px-3 py-2 w-24" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {items.map((r) => {
+                      const active = r.id === selectedId;
+                      return (
+                        <tr
+                          key={r.id}
+                          onClick={() => setSelectedId(active ? null : r.id)}
+                          className={`cursor-pointer transition-colors ${
+                            active ? "bg-indigo-50" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs">
                             {r.jd_title || "Resume"}
-                          </p>
-                          {r.jd_company && (
-                            <span className="text-xs text-gray-400">{r.jd_company}</span>
-                          )}
-                          <span className={`px-1.5 py-0.5 text-[10px] rounded ${
-                            r.language === "en" ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
-                          }`}>
-                            {r.language === "en" ? "EN" : "ZH"}
-                          </span>
-                          {r.has_pdf && (
-                            <span className="text-[10px] text-green-600">PDF</span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {new Date(r.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5 ml-3">
-                        {r.has_pdf && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); window.open(`/api/resumes/${r.id}/pdf`, "_blank"); }}
-                            className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                          >PDF</button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); r.content_md && download(r.content_md, "md", "text/markdown", r.id); }}
-                          disabled={!r.content_md}
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-40"
-                        >.md</button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); r.content_tex && download(r.content_tex, "tex", "application/x-tex", r.id); }}
-                          disabled={!r.content_tex}
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-40"
-                        >.tex</button>
-                        <DeleteBtn onDelete={() => handleDelete(r.id)} />
-                        <span className="text-gray-300 text-xs ml-1">
-                          {expandedId === r.id ? "▲" : "▼"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Expanded preview */}
-                    {expandedId === r.id && (
-                      <div className="px-4 pb-4 border-t border-gray-50">
-                        <div className="flex gap-1 mt-3 mb-2">
-                          <span className="text-xs text-gray-500">Preview (Markdown)</span>
-                        </div>
-                        <pre className="bg-gray-50 rounded p-3 text-[11px] text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto font-mono leading-relaxed">
-                          {r.content_md || "No content"}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 truncate max-w-[10rem]">
+                            {r.jd_company || "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span
+                              className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                r.language === "en"
+                                  ? "bg-blue-50 text-blue-600"
+                                  : "bg-orange-50 text-orange-600"
+                              }`}
+                            >
+                              {r.language === "en" ? "EN" : "ZH"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            {r.has_pdf ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`/api/resumes/${r.id}/pdf`, "_blank");
+                                }}
+                                className="px-2 py-0.5 text-[11px] bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                              >
+                                PDF
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-400">
+                            {new Date(r.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span onClick={(e) => e.stopPropagation()}>
+                              <DeleteBtn onDelete={() => handleDelete(r.id)} />
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Preview panel, from the right — the list stays put. */}
+      <div
+        ref={panelRef}
+        className={`fixed inset-y-0 right-0 z-40 w-full md:w-[46rem] max-w-full bg-white border-l border-gray-200 shadow-xl
+          transition-transform duration-200 ease-in-out ${
+            selected ? "translate-x-0" : "translate-x-full"
+          }`}
+        aria-hidden={!selected}
+      >
+        {selected && (
+          <ResumeDetail
+            resume={selected}
+            onClose={() => setSelectedId(null)}
+            onDownload={download}
+          />
+        )}
+      </div>
+
     </div>
   );
 }

@@ -20,6 +20,18 @@ def _bilingual(en: str | None, zh: str | None, lang: str) -> str | None:
     return en
 
 
+
+def _owned(obj: Any, user_id: str | None) -> bool:
+    """Whether `obj` belongs to `user_id`.
+
+    `None` means the caller is trusted and no check applies — the pipeline
+    steps, the CLI and the cron jobs, which have already established whose
+    data they are working on. Mirrors `_owner_clause` in the Postgres
+    implementation, which does the same job in SQL.
+    """
+    return user_id is None or getattr(obj, "user_id", None) == user_id
+
+
 class ProfileRepository:
     """Repository for fetching profile data.
 
@@ -163,26 +175,32 @@ class ProfileRepository:
         return await self.storage.update_profile(profile_id, data)
 
     async def update_experience(
-        self, exp_id: UUID, data: dict[str, Any],
+        self, exp_id: UUID, data: dict[str, Any], user_id: str | None = None,
     ) -> Experience | None:
         """Update an experience entry (supports bilingual fields)."""
-        return await self.storage.update_experience(exp_id, data)
+        return await self.storage.update_experience(exp_id, data, user_id=user_id)
 
     async def update_bullet(
-        self, bullet_id: UUID, data: dict[str, Any],
+        self, bullet_id: UUID, data: dict[str, Any], user_id: str | None = None,
     ) -> Bullet | None:
         """Update a bullet entry."""
-        return await self.storage.update_bullet(bullet_id, data)
+        return await self.storage.update_bullet(bullet_id, data, user_id=user_id)
 
-    async def delete_bullet(self, bullet_id: UUID) -> bool:
+    async def delete_bullet(self, bullet_id: UUID, user_id: str | None = None) -> bool:
         """Delete a bullet by ID. Returns True if found and deleted."""
-        return await self.storage.delete_bullet(bullet_id)
+        return await self.storage.delete_bullet(bullet_id, user_id=user_id)
 
     async def add_bullet(
-        self, experience_id: UUID, data: dict[str, Any],
+        self, experience_id: UUID, data: dict[str, Any], user_id: str | None = None,
     ) -> Bullet:
-        """Create and save a new bullet under an experience."""
-        bullet = Bullet(experience_id=experience_id, **data)
+        """Create and save a new bullet under an experience.
+
+        `user_id` stamps the owner. Left off, the schema default applies —
+        correct for the CLI's single-user store, wrong for anything serving
+        more than one account, so request handlers always pass it.
+        """
+        owner = {"user_id": user_id} if user_id else {}
+        bullet = Bullet(experience_id=experience_id, **owner, **data)
         await self.storage.save_bullet(bullet)
         return bullet
 
@@ -193,11 +211,15 @@ class JDRepository:
     def __init__(self, storage: "DataStorage | None" = None):
         self.storage = storage or InMemoryDataStorage()
 
-    async def get_jd_record(self, jd_id: UUID) -> JDRecord | None:
-        return await self.storage.get_jd_record(jd_id)
+    async def get_jd_record(
+        self, jd_id: UUID, user_id: str | None = None
+    ) -> JDRecord | None:
+        return await self.storage.get_jd_record(jd_id, user_id=user_id)
 
-    async def update_match_score(self, jd_id: UUID, score: float) -> None:
-        await self.storage.update_jd_match_score(jd_id, score)
+    async def update_match_score(
+        self, jd_id: UUID, score: float, user_id: str | None = None
+    ) -> None:
+        await self.storage.update_jd_match_score(jd_id, score, user_id=user_id)
 
 
 class BulletRepository:
@@ -246,8 +268,10 @@ class ResumeRepository:
     async def save_artifact(self, artifact: ResumeArtifact) -> None:
         await self.storage.save_resume_artifact(artifact)
 
-    async def get_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
-        return await self.storage.get_resume_artifact(artifact_id)
+    async def get_artifact(
+        self, artifact_id: UUID, user_id: str | None = None
+    ) -> ResumeArtifact | None:
+        return await self.storage.get_resume_artifact(artifact_id, user_id=user_id)
 
 
 class ExperienceRepository:
@@ -256,14 +280,18 @@ class ExperienceRepository:
     def __init__(self, storage: "DataStorage | None" = None):
         self.storage = storage or InMemoryDataStorage()
 
-    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
-        return await self.storage.get_experience_by_id(exp_id)
+    async def get_experience_by_id(
+        self, exp_id: UUID, user_id: str | None = None
+    ) -> Experience | None:
+        return await self.storage.get_experience_by_id(exp_id, user_id=user_id)
 
-    async def get_experiences_by_ids(self, exp_ids: list[UUID]) -> dict[UUID, Experience]:
+    async def get_experiences_by_ids(
+        self, exp_ids: list[UUID], user_id: str | None = None
+    ) -> dict[UUID, Experience]:
         """Get multiple experiences by their IDs."""
         result = {}
         for exp_id in exp_ids:
-            exp = await self.storage.get_experience_by_id(exp_id)
+            exp = await self.storage.get_experience_by_id(exp_id, user_id=user_id)
             if exp:
                 result[exp_id] = exp
         return result
@@ -374,19 +402,25 @@ class DataStorage:
     async def get_experiences(self, profile_id: UUID) -> list[Experience]:
         raise NotImplementedError
 
-    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
+    async def get_experience_by_id(
+        self, exp_id: UUID, user_id: str | None = None
+    ) -> Experience | None:
         raise NotImplementedError
 
-    async def update_experience(self, exp_id: UUID, data: dict[str, Any]) -> Experience | None:
+    async def update_experience(
+        self, exp_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Experience | None:
         raise NotImplementedError
 
     async def get_bullets(self, experience_id: UUID) -> list[Bullet]:
         raise NotImplementedError
 
-    async def update_bullet(self, bullet_id: UUID, data: dict[str, Any]) -> Bullet | None:
+    async def update_bullet(
+        self, bullet_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Bullet | None:
         raise NotImplementedError
 
-    async def delete_bullet(self, bullet_id: UUID) -> bool:
+    async def delete_bullet(self, bullet_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
     async def get_projects(self, profile_id: UUID) -> list[Project]:
@@ -395,65 +429,90 @@ class DataStorage:
     async def get_education(self, profile_id: UUID) -> list[Education]:
         raise NotImplementedError
 
-    async def get_jd_record(self, jd_id: UUID) -> JDRecord | None:
+    async def get_jd_record(
+        self, jd_id: UUID, user_id: str | None = None
+    ) -> JDRecord | None:
         raise NotImplementedError
 
     async def list_jd_records(self, user_id: str) -> list[JDRecord]:
         raise NotImplementedError
 
-    async def delete_jd_record(self, jd_id: UUID) -> bool:
+    async def delete_jd_record(self, jd_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
-    async def update_jd_match_score(self, jd_id: UUID, score: float) -> None:
+    async def update_jd_record(
+        self, jd_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> JDRecord | None:
+        raise NotImplementedError
+
+    async def update_jd_match_score(
+        self, jd_id: UUID, score: float, user_id: str | None = None
+    ) -> None:
         raise NotImplementedError
 
     async def save_resume_artifact(self, artifact: ResumeArtifact) -> None:
         raise NotImplementedError
 
-    async def get_resume_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
+    async def get_resume_artifact(
+        self, artifact_id: UUID, user_id: str | None = None
+    ) -> ResumeArtifact | None:
         raise NotImplementedError
 
     async def list_resume_artifacts(self, user_id: str) -> list[ResumeArtifact]:
         raise NotImplementedError
 
-    async def delete_resume_artifact(self, artifact_id: UUID) -> bool:
+    async def delete_resume_artifact(
+        self, artifact_id: UUID, user_id: str | None = None
+    ) -> bool:
         raise NotImplementedError
 
-    async def delete_resume_artifacts_by_jd(self, jd_record_id: UUID) -> int:
+    async def delete_resume_artifacts_by_jd(
+        self, jd_record_id: UUID, user_id: str | None = None
+    ) -> int:
         raise NotImplementedError
 
-    async def update_resume_artifact(self, artifact_id: UUID, data: dict[str, Any]) -> bool:
+    async def update_resume_artifact(
+        self, artifact_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> bool:
         raise NotImplementedError
 
     # Task methods
     async def save_task(self, task: Task) -> None:
         raise NotImplementedError
 
-    async def get_task(self, task_id: UUID) -> Task | None:
+    async def get_task(self, task_id: UUID, user_id: str | None = None) -> Task | None:
         raise NotImplementedError
 
-    async def update_task(self, task_id: UUID, data: dict[str, Any]) -> Task | None:
+    async def update_task(
+        self, task_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Task | None:
         raise NotImplementedError
 
-    async def delete_project(self, project_id: UUID) -> bool:
+    async def delete_project(self, project_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
-    async def update_project(self, project_id: UUID, data: dict[str, Any]) -> Project | None:
+    async def update_project(
+        self, project_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Project | None:
         raise NotImplementedError
 
-    async def delete_experience(self, exp_id: UUID) -> bool:
+    async def delete_experience(self, exp_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
-    async def update_skill(self, skill_id: UUID, data: dict[str, Any]) -> Skill | None:
+    async def update_skill(
+        self, skill_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Skill | None:
         raise NotImplementedError
 
-    async def delete_skill(self, skill_id: UUID) -> bool:
+    async def delete_skill(self, skill_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
-    async def update_education(self, edu_id: UUID, data: dict[str, Any]) -> Education | None:
+    async def update_education(
+        self, edu_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Education | None:
         raise NotImplementedError
 
-    async def delete_education(self, edu_id: UUID) -> bool:
+    async def delete_education(self, edu_id: UUID, user_id: str | None = None) -> bool:
         raise NotImplementedError
 
     # Token usage methods
@@ -543,12 +602,17 @@ class InMemoryDataStorage(DataStorage):
     async def get_experiences(self, profile_id: UUID) -> list[Experience]:
         return self._experiences.get(profile_id, [])
 
-    async def get_experience_by_id(self, exp_id: UUID) -> Experience | None:
-        return self._experiences_by_id.get(exp_id)
-
-    async def update_experience(self, exp_id: UUID, data: dict[str, Any]) -> Experience | None:
+    async def get_experience_by_id(
+        self, exp_id: UUID, user_id: str | None = None
+    ) -> Experience | None:
         exp = self._experiences_by_id.get(exp_id)
-        if not exp:
+        return exp if exp and _owned(exp, user_id) else None
+
+    async def update_experience(
+        self, exp_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Experience | None:
+        exp = self._experiences_by_id.get(exp_id)
+        if not exp or not _owned(exp, user_id):
             return None
         updated = exp.model_copy(update=data)
         self._experiences_by_id[exp_id] = updated
@@ -570,9 +634,11 @@ class InMemoryDataStorage(DataStorage):
     async def get_bullets(self, experience_id: UUID) -> list[Bullet]:
         return self._bullets.get(experience_id, [])
 
-    async def update_bullet(self, bullet_id: UUID, data: dict[str, Any]) -> Bullet | None:
+    async def update_bullet(
+        self, bullet_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Bullet | None:
         bullet = self._bullets_by_id.get(bullet_id)
-        if not bullet:
+        if not bullet or not _owned(bullet, user_id):
             return None
         updated = bullet.model_copy(update=data)
         self._bullets_by_id[bullet_id] = updated
@@ -583,10 +649,11 @@ class InMemoryDataStorage(DataStorage):
             ]
         return updated
 
-    async def delete_bullet(self, bullet_id: UUID) -> bool:
-        bullet = self._bullets_by_id.pop(bullet_id, None)
-        if not bullet:
+    async def delete_bullet(self, bullet_id: UUID, user_id: str | None = None) -> bool:
+        bullet = self._bullets_by_id.get(bullet_id)
+        if not bullet or not _owned(bullet, user_id):
             return False
+        del self._bullets_by_id[bullet_id]
         if bullet.experience_id in self._bullets:
             self._bullets[bullet.experience_id] = [
                 b for b in self._bullets[bullet.experience_id] if b.id != bullet_id
@@ -602,30 +669,33 @@ class InMemoryDataStorage(DataStorage):
     async def get_projects(self, profile_id: UUID) -> list[Project]:
         return self._projects.get(profile_id, [])
 
-    async def delete_project(self, project_id: UUID) -> bool:
+    async def delete_project(self, project_id: UUID, user_id: str | None = None) -> bool:
         for pid, projects in self._projects.items():
             for i, p in enumerate(projects):
-                if p.id == project_id:
+                if p.id == project_id and _owned(p, user_id):
                     projects.pop(i)
                     return True
         return False
 
-    async def update_project(self, project_id: UUID, data: dict[str, Any]) -> Project | None:
+    async def update_project(
+        self, project_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Project | None:
         # Coerce experience_id to UUID if present
         if "experience_id" in data and data["experience_id"] is not None:
             data["experience_id"] = UUID(str(data["experience_id"]))
         for pid, projects in self._projects.items():
             for i, p in enumerate(projects):
-                if p.id == project_id:
+                if p.id == project_id and _owned(p, user_id):
                     updated = p.model_copy(update=data)
                     projects[i] = updated
                     return updated
         return None
 
-    async def delete_experience(self, exp_id: UUID) -> bool:
-        exp = self._experiences_by_id.pop(exp_id, None)
-        if not exp:
+    async def delete_experience(self, exp_id: UUID, user_id: str | None = None) -> bool:
+        exp = self._experiences_by_id.get(exp_id)
+        if not exp or not _owned(exp, user_id):
             return False
+        del self._experiences_by_id[exp_id]
         if exp.profile_id in self._experiences:
             self._experiences[exp.profile_id] = [
                 e for e in self._experiences[exp.profile_id] if e.id != exp_id
@@ -634,36 +704,40 @@ class InMemoryDataStorage(DataStorage):
         self._bullets.pop(exp_id, None)
         return True
 
-    async def update_skill(self, skill_id: UUID, data: dict[str, Any]) -> Skill | None:
+    async def update_skill(
+        self, skill_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Skill | None:
         for pid, skills in self._skills.items():
             for i, s in enumerate(skills):
-                if s.id == skill_id:
+                if s.id == skill_id and _owned(s, user_id):
                     updated = s.model_copy(update=data)
                     skills[i] = updated
                     return updated
         return None
 
-    async def delete_skill(self, skill_id: UUID) -> bool:
+    async def delete_skill(self, skill_id: UUID, user_id: str | None = None) -> bool:
         for pid, skills in self._skills.items():
             for i, s in enumerate(skills):
-                if s.id == skill_id:
+                if s.id == skill_id and _owned(s, user_id):
                     skills.pop(i)
                     return True
         return False
 
-    async def update_education(self, edu_id: UUID, data: dict[str, Any]) -> Education | None:
+    async def update_education(
+        self, edu_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Education | None:
         for pid, edus in self._education.items():
             for i, e in enumerate(edus):
-                if e.id == edu_id:
+                if e.id == edu_id and _owned(e, user_id):
                     updated = e.model_copy(update=data)
                     edus[i] = updated
                     return updated
         return None
 
-    async def delete_education(self, edu_id: UUID) -> bool:
+    async def delete_education(self, edu_id: UUID, user_id: str | None = None) -> bool:
         for pid, edus in self._education.items():
             for i, e in enumerate(edus):
-                if e.id == edu_id:
+                if e.id == edu_id and _owned(e, user_id):
                     edus.pop(i)
                     return True
         return False
@@ -681,49 +755,82 @@ class InMemoryDataStorage(DataStorage):
     async def save_jd_record(self, jd: JDRecord) -> None:
         self._jd_records[jd.id] = jd
 
-    async def get_jd_record(self, jd_id: UUID) -> JDRecord | None:
-        return self._jd_records.get(jd_id)
+    async def get_jd_record(
+        self, jd_id: UUID, user_id: str | None = None
+    ) -> JDRecord | None:
+        jd = self._jd_records.get(jd_id)
+        return jd if jd and _owned(jd, user_id) else None
 
     async def list_jd_records(self, user_id: str) -> list[JDRecord]:
         records = [j for j in self._jd_records.values() if j.user_id == user_id]
         records.sort(key=lambda j: j.created_at, reverse=True)
         return records
 
-    async def delete_jd_record(self, jd_id: UUID) -> bool:
-        return self._jd_records.pop(jd_id, None) is not None
+    async def delete_jd_record(self, jd_id: UUID, user_id: str | None = None) -> bool:
+        jd = self._jd_records.get(jd_id)
+        if not jd or not _owned(jd, user_id):
+            return False
+        del self._jd_records[jd_id]
+        return True
 
-    async def update_jd_match_score(self, jd_id: UUID, score: float) -> None:
-        if jd_id in self._jd_records:
-            self._jd_records[jd_id].match_score = score
+    async def update_jd_record(
+        self, jd_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> JDRecord | None:
+        jd = self._jd_records.get(jd_id)
+        if not jd or not _owned(jd, user_id):
+            return None
+        updated = jd.model_copy(update=data)
+        self._jd_records[jd_id] = updated
+        return updated
+
+    async def update_jd_match_score(
+        self, jd_id: UUID, score: float, user_id: str | None = None
+    ) -> None:
+        jd = self._jd_records.get(jd_id)
+        if jd and _owned(jd, user_id):
+            jd.match_score = score
 
     # Resume Artifacts
     async def save_resume_artifact(self, artifact: ResumeArtifact) -> None:
         self._resume_artifacts[artifact.id] = artifact
 
-    async def get_resume_artifact(self, artifact_id: UUID) -> ResumeArtifact | None:
-        return self._resume_artifacts.get(artifact_id)
+    async def get_resume_artifact(
+        self, artifact_id: UUID, user_id: str | None = None
+    ) -> ResumeArtifact | None:
+        artifact = self._resume_artifacts.get(artifact_id)
+        return artifact if artifact and _owned(artifact, user_id) else None
 
     async def list_resume_artifacts(self, user_id: str) -> list[ResumeArtifact]:
         artifacts = [a for a in self._resume_artifacts.values() if a.user_id == user_id]
         artifacts.sort(key=lambda a: a.created_at, reverse=True)
         return artifacts
 
-    async def delete_resume_artifact(self, artifact_id: UUID) -> bool:
-        return self._resume_artifacts.pop(artifact_id, None) is not None
+    async def delete_resume_artifact(
+        self, artifact_id: UUID, user_id: str | None = None
+    ) -> bool:
+        artifact = self._resume_artifacts.get(artifact_id)
+        if not artifact or not _owned(artifact, user_id):
+            return False
+        del self._resume_artifacts[artifact_id]
+        return True
 
-    async def delete_resume_artifacts_by_jd(self, jd_record_id: UUID) -> int:
+    async def delete_resume_artifacts_by_jd(
+        self, jd_record_id: UUID, user_id: str | None = None
+    ) -> int:
         to_delete = [
             aid for aid, a in self._resume_artifacts.items()
-            if a.jd_record_id == jd_record_id
+            if a.jd_record_id == jd_record_id and _owned(a, user_id)
         ]
         for aid in to_delete:
             del self._resume_artifacts[aid]
         return len(to_delete)
 
     # Resume Artifact update
-    async def update_resume_artifact(self, artifact_id: UUID, data: dict[str, Any]) -> bool:
+    async def update_resume_artifact(
+        self, artifact_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> bool:
         artifact = self._resume_artifacts.get(artifact_id)
-        if not artifact:
+        if not artifact or not _owned(artifact, user_id):
             return False
         self._resume_artifacts[artifact_id] = artifact.model_copy(update=data)
         return True
@@ -732,12 +839,15 @@ class InMemoryDataStorage(DataStorage):
     async def save_task(self, task: Task) -> None:
         self._tasks[task.id] = task
 
-    async def get_task(self, task_id: UUID) -> Task | None:
-        return self._tasks.get(task_id)
-
-    async def update_task(self, task_id: UUID, data: dict[str, Any]) -> Task | None:
+    async def get_task(self, task_id: UUID, user_id: str | None = None) -> Task | None:
         task = self._tasks.get(task_id)
-        if not task:
+        return task if task and _owned(task, user_id) else None
+
+    async def update_task(
+        self, task_id: UUID, data: dict[str, Any], user_id: str | None = None
+    ) -> Task | None:
+        task = self._tasks.get(task_id)
+        if not task or not _owned(task, user_id):
             return None
         updated = task.model_copy(update=data)
         self._tasks[task_id] = updated

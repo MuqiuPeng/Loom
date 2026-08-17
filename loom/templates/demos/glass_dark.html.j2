@@ -1,0 +1,41 @@
+{# Aurora backdrop with grain; content on glass panels. The -webkit- prefix is
+   not optional — Safari is what the owner is holding. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#0d0f14;color:#eef0f6;position:relative;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:-20%;z-index:-2;
+  background:
+    radial-gradient(38rem 30rem at 15% 12%, {{ palette.accent }}55, transparent 70%),
+    radial-gradient(32rem 26rem at 85% 30%, #4a3aa855, transparent 70%);
+  filter:blur(80px)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.hero{padding:4.5rem 1.5rem 2.5rem}
+{# Engraved caps rather than another grotesk — this direction was setting
+   -apple-system against -apple-system, which gave a cocktail lounge the same
+   voice as a dentist. Copperplate runs large in caps, so the scale comes
+   down and the tracking opens up. #}
+h1{font-family:Copperplate,'Copperplate Gothic Light',Optima,'Gill Sans',sans-serif;
+  font-size:clamp(1.9rem,6.5vw,3.6rem);font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;margin:0;line-height:1.15}
+.lede{margin-top:1.3rem;max-width:34rem;opacity:.78}
+.hero-img{margin-top:2.2rem;border-radius:16px;filter:brightness(.55)}
+h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.18em;
+  opacity:.6;margin:0 0 1.2rem}
+h3{font-size:1rem;font-weight:600;margin:1.6rem 0 .6rem;color:{{ palette.accent }}}
+.band{padding:2.5rem 0}
+.band, .facts{background:rgba(255,255,255,.06);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+  backdrop-filter:blur(16px) saturate(140%);
+  border:1px solid rgba(255,255,255,.12);border-radius:16px;
+  padding:1.8rem;margin-bottom:1.2rem}
+.item{border-bottom:1px solid rgba(255,255,255,.1)}
+.gallery img{border-radius:12px}
+.facts-grid{display:grid;gap:1.2rem;background:none;border:0;padding:0;
+  -webkit-backdrop-filter:none;backdrop-filter:none}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-transparency:reduce){
+  .band,.facts{-webkit-backdrop-filter:none;backdrop-filter:none;
+    background:rgba(20,22,30,.9)}}
+.closing{background:rgba(255,255,255,.05)}
+{% endblock %}

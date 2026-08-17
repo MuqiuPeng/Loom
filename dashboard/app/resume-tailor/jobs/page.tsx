@@ -88,7 +88,7 @@ export default function JobsPage() {
       {!jobs && !error && <div className="bg-white rounded-lg border border-gray-200 h-96 animate-pulse" />}
 
       {jobs && inputOpen && (
-        <div className="bg-white rounded-lg border border-gray-200 h-[calc(100vh-10rem)] flex flex-col p-4 md:p-6">
+        <div className="bg-white rounded-lg border border-gray-200 min-h-[50vh] md:h-[calc(100vh-10rem)] flex flex-col p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Paste Job Description</h2>
             <button onClick={handleCancelInput} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
@@ -105,7 +105,7 @@ export default function JobsPage() {
       )}
 
       {jobs && !inputOpen && (
-        <div className="flex flex-col md:flex-row bg-white rounded-lg border border-gray-200 h-[calc(100vh-10rem)]">
+        <div className="flex flex-col md:flex-row bg-white rounded-lg border border-gray-200 min-h-[50vh] md:h-[calc(100vh-10rem)]">
           {/* Left: JD list */}
           <div className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col overflow-hidden">
             <div className="px-3 py-2.5 border-b border-gray-200 shrink-0">

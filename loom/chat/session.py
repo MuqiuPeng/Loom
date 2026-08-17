@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from loom.current_user import get_current_user
 from loom.llm.client import Claude, Model
 
 
@@ -25,7 +26,7 @@ class ChatSession(BaseModel):
     """
 
     session_id: str = Field(default_factory=lambda: str(uuid4()))
-    user_id: str = Field(default="local")
+    user_id: str = Field(default_factory=get_current_user)
     language: str = Field(default="zh", description="'zh' or 'en'")
     messages: list[ChatMessage] = Field(default_factory=list)
     summary: str = Field(default="", description="Compressed summary of older messages")
@@ -96,10 +97,10 @@ Please summarize the key information collected in this conversation concisely, i
 
 Example format:
 Candidate has provided:
-- Kaihua Software (2023.9-12): Web scraping system, processed 20K documents, using Lambda+S3
-- Meituan internship: Currently collecting
+- Company A (2023.9-12): Built data pipeline, processed 20K records, using Lambda+S3
+- Company B internship: Currently collecting details
 
-Current focus: Specific work content at Meituan internship"""
+Current focus: Specific work content at Company B"""
             system = "You are a conversation summarization assistant, summarizing key information concisely and accurately."
         else:
             existing_context = f"之前的摘要：\n{self.summary}\n\n" if self.summary else ""
@@ -115,10 +116,10 @@ Current focus: Specific work content at Meituan internship"""
 
 输出格式示例：
 候选人已提供：
-- Kaihua Software (2023.9-12)：爬虫系统，处理2万份文档，使用 Lambda+S3
-- Meituan 实习：正在收集中
+- A 公司 (2023.9-12)：数据管道系统，处理2万条记录，使用 Lambda+S3
+- B 公司实习：正在收集中
 
-当前焦点：Meituan 实习的具体工作内容"""
+当前焦点：B 公司实习的具体工作内容"""
             system = "你是一个对话摘要助手，用简洁准确的方式总结对话中的关键信息。"
 
         new_summary = await claude.complete(
@@ -289,38 +290,56 @@ class SessionStore:
     def __init__(self):
         self._sessions: dict[str, ChatSession] = {}
 
-    def get(self, session_id: str) -> ChatSession | None:
-        """Get a session by ID."""
-        return self._sessions.get(session_id)
+    def get(self, session_id: str, user_id: str | None = None) -> ChatSession | None:
+        """Get a session by ID.
 
-    def create(self, user_id: str = "local", language: str = "zh") -> ChatSession:
+        A session id is a bearer token in all but name — anyone holding one
+        can read the whole conversation, and these carry the user's career
+        history. `user_id` makes someone else's session indistinguishable from
+        one that does not exist. `None` skips the check, for trusted callers.
+        """
+        session = self._sessions.get(session_id)
+        if session is None:
+            return None
+        if user_id is not None and session.user_id != user_id:
+            return None
+        return session
+
+    def create(self, user_id: str | None = None, language: str = "zh") -> ChatSession:
         """Create a new session."""
-        session = ChatSession(user_id=user_id, language=language)
+        session = ChatSession(user_id=user_id or get_current_user(), language=language)
         self._sessions[session.session_id] = session
         return session
 
     def get_or_create(
-        self, session_id: str | None, user_id: str = "local", language: str = "zh"
+        self, session_id: str | None, user_id: str | None = None, language: str = "zh"
     ) -> ChatSession:
-        """Get existing session or create new one."""
-        if session_id and session_id in self._sessions:
-            return self._sessions[session_id]
+        """Get existing session, or start one.
+
+        A session id belonging to someone else does not resume theirs — it
+        falls through to a new session, the same as an id that has expired.
+        """
+        if session_id:
+            existing = self.get(session_id, user_id)
+            if existing is not None:
+                return existing
         return self.create(user_id, language)
 
     def save(self, session: ChatSession) -> None:
         """Save/update a session."""
         self._sessions[session.session_id] = session
 
-    def delete(self, session_id: str) -> bool:
+    def delete(self, session_id: str, user_id: str | None = None) -> bool:
         """Delete a session."""
-        if session_id in self._sessions:
-            del self._sessions[session_id]
-            return True
-        return False
+        if self.get(session_id, user_id) is None:
+            return False
+        del self._sessions[session_id]
+        return True
 
-    def list_sessions(self, user_id: str = "local") -> list[ChatSession]:
+    def list_sessions(self, user_id: str | None = None) -> list[ChatSession]:
         """List all sessions for a user."""
-        return [s for s in self._sessions.values() if s.user_id == user_id]
+        owner = user_id or get_current_user()
+        return [s for s in self._sessions.values() if s.user_id == owner]
 
 
 # Global session store instance

@@ -558,6 +558,15 @@ async def _backfill_bullets(dry_run: bool, limit: Optional[int]):
     storage = JsonFileDataStorage()
     await do_backfill(storage, dry_run=dry_run, limit=limit)
 
+    # CLI runs out-of-process: sync the Notion mirror directly before exit
+    # (the API's debounced scheduler doesn't exist here)
+    if not dry_run:
+        try:
+            from loom.services.notion_sync import sync_profile_to_notion
+            await sync_profile_to_notion(storage)
+        except Exception as e:
+            print(f"Notion sync skipped: {e}")
+
 
 if __name__ == "__main__":
     main()

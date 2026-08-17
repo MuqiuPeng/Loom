@@ -11,23 +11,10 @@
 - **{{ skill_group.category }}:** {{ skill_group.content }}
 {%- endfor %}
 
-## Education
-{% for edu in education %}
-**{{ edu.degree }}** — {{ edu.institution }} *{{ edu.period }}*
-{% endfor %}
-
-{%- if certifications %}
-
-## Certifications
-{% for cert in certifications %}
-- {{ cert.year }}, {{ cert.name }}
-{%- endfor %}
-{%- endif %}
-
 ## Experience
 {% for exp in experiences %}
 ### {{ exp.title }} — {{ exp.company }}
-*{{ exp.period }}*
+*{{ exp.period }}*{%- if exp.location %} | *{{ exp.location }}*{% endif %}
 {% for bullet in exp.bullets %}
 - {{ bullet }}
 {%- endfor %}
@@ -42,4 +29,17 @@
 - {{ bullet }}
 {%- endfor %}
 {% endfor %}
+{%- endif %}
+
+## Education
+{% for edu in education %}
+**{{ edu.degree }}** — {{ edu.institution }} *{{ edu.period }}*
+{% endfor %}
+
+{%- if certifications %}
+
+## Certifications
+{% for cert in certifications %}
+- {{ cert.year }}, {{ cert.name }}
+{%- endfor %}
 {%- endif %}

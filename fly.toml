@@ -1,0 +1,53 @@
+# Fly.io config for the Loom API.
+#
+# Sydney, because that is where the Supabase instance is — every request does
+# several round trips to Postgres, and putting the app on the other side of
+# the Pacific from its database would cost more than any of the work here
+# saved.
+
+app = "loom-api"
+primary_region = "syd"
+
+[build]
+
+[env]
+  LOOM_API_PORT = "8001"
+  LOOM_CJK_FONT = "Noto Sans CJK SC"
+
+[http_service]
+  internal_port = 8001
+  force_https = true
+
+  # Never scale to zero. Two reasons: the lifespan hook starts the daily
+  # job-tracker scheduler and the hourly reply poller, and neither runs on a
+  # machine that is asleep — the outreach signature promises to action an
+  # opt-out within five business days, and a poller that only wakes on
+  # traffic is not a mechanism. Second, this image is ~700MB, so a cold start
+  # is seconds a person is waiting.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    # Resume generation and site crawling hold a request open for a long
+    # time. Low limits here mean Fly queues rather than piling work onto one
+    # machine that is already compiling LaTeX.
+    soft_limit = 12
+    hard_limit = 25
+
+[[vm]]
+  # Chromium and xelatex both want real memory; 512MB OOMs partway through a
+  # render audit, which surfaces as an audit that silently found nothing.
+  size = "shared-cpu-1x"
+  memory = "1gb"
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8001
+    method = "get"
+    path = "/api/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"

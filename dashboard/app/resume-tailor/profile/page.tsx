@@ -117,8 +117,8 @@ function ProfileContent() {
   ] : [];
 
   return (
-    <div className="flex gap-8">
-      <div className="flex-1 min-w-0 max-w-4xl">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+      <div className="flex-1 min-w-0 max-w-full lg:max-w-4xl">
       <Header title="Profile">
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-gray-100 rounded-md p-0.5">

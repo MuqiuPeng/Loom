@@ -22,7 +22,7 @@ class Model(str, Enum):
     """
 
     HAIKU = "claude-haiku-4-5-20251001"
-    SONNET = "claude-sonnet-4-20250514"
+    SONNET = "claude-sonnet-5"
 
 
 @dataclass
@@ -58,6 +58,31 @@ class Claude:
         self._workflow_run_id: UUID | None = None
         self._step_name: str | None = None
         self._user_id: str = "local"
+
+    @classmethod
+    def tracked(cls, step_name: str | None = None) -> "Claude":
+        """A client whose usage actually gets recorded.
+
+        `Claude()` on its own silently discards usage: _record_usage returns
+        early when no storage is attached, and only the resume-tailor steps
+        ever called set_storage. Everything built later — site harvesting,
+        demo generation, outreach drafts — was therefore invisible in the
+        token totals, which matters most for demo generation because it is
+        the most expensive call in the product.
+
+        `step_name` is what separates those callers in the usage table.
+        """
+        client = cls()
+        try:
+            from loom.api import get_storage
+
+            client.set_storage(get_storage())
+        except Exception:
+            # Usage tracking must never be the reason a generation fails.
+            return client
+        if step_name:
+            client.set_context(step_name=step_name)
+        return client
 
     def set_storage(self, storage: "DataStorage") -> "Claude":
         """Set storage backend for usage tracking. Returns self for chaining."""
@@ -112,7 +137,7 @@ class Claude:
         *,
         model: Model = Model.SONNET,
         system: str | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> str:
         """Get a text completion from Claude.
 
@@ -139,7 +164,7 @@ class Claude:
         *,
         model: Model = Model.SONNET,
         system: str | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> CompletionResult:
         """Get a text completion with detailed usage information.
 
@@ -154,15 +179,29 @@ class Claude:
         """
         messages = [{"role": "user", "content": prompt}]
 
+        # Claude Sonnet 5 runs adaptive thinking by default; max_tokens caps
+        # thinking + response text together. These pipeline calls are structured
+        # extraction tasks, so cap effort at "medium" to keep thinking spend
+        # from starving the text output.
+        kwargs: dict = {}
+        if model is Model.SONNET:
+            kwargs["output_config"] = {"effort": "medium"}
+
         response = await self.client.messages.create(
             model=model.value,
             max_tokens=max_tokens,
             system=system or "",
             messages=messages,
+            **kwargs,
+        )
+
+        # Reasoning models may emit thinking blocks before the text block
+        text = "".join(
+            block.text for block in response.content if getattr(block, "type", "") == "text"
         )
 
         result = CompletionResult(
-            text=response.content[0].text,
+            text=text,
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             model=model.value,
@@ -224,6 +263,85 @@ class Claude:
         )
         return result[0]
 
+    async def extract_model(
+        self,
+        prompt: str,
+        schema: type["BaseModel"],
+        *,
+        model: Model = Model.HAIKU,
+        system: str | None = None,
+        max_tokens: int = 8192,
+        retries: int = 1,
+    ) -> "BaseModel":
+        """Return an instance of `schema`, or raise.
+
+        extract_json asks the model nicely for JSON and parses whatever comes
+        back, so a missing field or a string where a list belongs degrades to
+        an empty value that every caller then has to guard against with .get().
+        The failure is silent, which is the wrong shape for a pipeline step —
+        a menu that came back malformed should say so, not look like a shop
+        with no menu.
+
+        Here the Pydantic model is turned into a tool schema and the tool call
+        is forced, so the API itself constrains the shape; the result is then
+        validated, and a validation error is handed back for one retry rather
+        than swallowed.
+        """
+        from pydantic import ValidationError
+
+        tool = {
+            "name": "record",
+            "description": f"Record the extracted {schema.__name__}.",
+            "input_schema": schema.model_json_schema(),
+        }
+        messages: list[dict] = [{"role": "user", "content": prompt}]
+
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            response = await self.client.messages.create(
+                model=model.value,
+                max_tokens=max_tokens,
+                system=system or "",
+                messages=messages,
+                tools=[tool],
+                tool_choice={"type": "tool", "name": "record"},
+            )
+            await self._record_usage(
+                model.value,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                caller="extract_model",
+            )
+
+            payload = next(
+                (b.input for b in response.content if getattr(b, "type", "") == "tool_use"),
+                None,
+            )
+            if payload is None:
+                last_error = ValueError("model returned no tool call")
+                continue
+
+            try:
+                return schema.model_validate(payload)
+            except ValidationError as e:
+                last_error = e
+                if attempt == retries:
+                    break
+                # Hand the model its own output and the complaint about it.
+                messages += [
+                    {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": "retry", "name": "record",
+                         "input": payload}
+                    ]},
+                    {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": "retry",
+                         "is_error": True,
+                         "content": f"That didn't validate: {e}. Correct it."}
+                    ]},
+                ]
+
+        raise ValueError(f"could not extract {schema.__name__}: {last_error}")
+
     async def extract_json_with_usage(
         self,
         prompt: str,
@@ -253,7 +371,7 @@ No markdown code blocks, no explanation, just the JSON object.""".strip()
             prompt=prompt,
             model=model,
             system=extraction_system,
-            max_tokens=4096,
+            max_tokens=8192,
         )
 
         # Clean response - remove markdown if present

@@ -1,0 +1,29 @@
+{# Geometric sans, blush palette, big radii, soft shadows only. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#fdf7f4;color:#3b2f33;
+  font-family:'Avenir Next','Century Gothic','Trebuchet MS',sans-serif}
+.hero{padding:4rem 1.5rem 2.5rem;text-align:center}
+{# An old-style French serif for the name. Avenir Next set against Avenir
+   Next left this direction voiceless, and a patisserie's own lettering is
+   almost never a geometric sans — it is a serif or a script. Cochin is the
+   serif every iPhone already has. #}
+h1{font-family:Cochin,'Hoefler Text',Garamond,Georgia,serif;
+  font-size:clamp(2.4rem,8.5vw,4.6rem);font-weight:400;letter-spacing:.01em;margin:0}
+h3{font-family:Cochin,'Hoefler Text',Garamond,serif}
+.lede{margin:1.4rem auto 0;max-width:32rem;opacity:.75}
+.hero-img{margin:2.5rem auto 0;border-radius:24px;
+  box-shadow:0 8px 32px rgba(59,47,51,.08)}
+h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.18em;
+  font-weight:600;opacity:.5;margin:0 0 1.4rem}
+h3{font-size:1.05rem;font-weight:600;margin:1.8rem 0 .7rem;color:{{ palette.accent }}}
+.band{padding:3rem 0}
+.item{background:#fff;border-radius:16px;padding:.9rem 1.2rem;margin-bottom:.6rem;
+  box-shadow:0 4px 20px rgba(59,47,51,.05)}
+.item .dots{border:0}
+.gallery img{border-radius:24px}
+.facts{background:#fff;border-radius:24px;padding:1.8rem;
+  box-shadow:0 4px 20px rgba(59,47,51,.05)}
+.facts-grid{display:grid;gap:1.2rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+{% endblock %}

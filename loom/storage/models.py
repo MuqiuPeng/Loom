@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -434,6 +435,109 @@ class TokenUsageModel(Base):
     caller: Mapped[str] = mapped_column(String(100), default="unknown")
 
 
+# Maps Platform ToS allows temporary caching of Places Content, not
+# warehousing. 30 days is the documented ceiling.
+GOOGLE_CACHE_DAYS = 30
+
+
+class ScoutLeadModel(Base):
+    """A saved outreach lead from Company Scout.
+
+    Two halves with different lifetimes, mirroring Maps Platform ToS 3.2.3:
+
+      * self-sourced — read from the company's own website (title, careers
+        page, published address, audit findings). Yours; keep indefinitely.
+      * Google-cached — display name, address and phone from Places. The Terms
+        permit temporary caching but not warehousing, so these carry an
+        explicit expiry and are blanked once past it. `place_id` is exempt
+        from the restriction and is what lets us re-fetch on demand instead of
+        hoarding a stale copy.
+    """
+
+    __tablename__ = "scout_leads"
+    # One row per business, per user, per campaign. Re-scouting the same area
+    # updates rather than duplicates; two accounts working the same suburb keep
+    # their own status and outreach history; and the same business can be a
+    # job-hunt lead and a freelance lead at once without the two colliding.
+    # `provider` is in the key because a place_id only means anything relative
+    # to the map service that issued it.
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "kind", "provider", "place_id",
+            name="uq_scout_leads_user_kind_place",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(100), default="local", index=True)
+
+    # Which campaign this lead belongs to, and the reason the two are separate
+    # rows rather than a display filter: they are legally different. A message
+    # asking about employment is not a commercial electronic message; pitching
+    # freelance work is, and needs consent, sender identification and a working
+    # opt-out. The outreach pipeline refuses anything that is not "freelance".
+    kind: Mapped[str] = mapped_column(String(20), default="freelance", index=True)
+
+    provider: Mapped[str] = mapped_column(String(20), default="google", index=True)
+    place_id: Mapped[str] = mapped_column(String(255), index=True)
+
+    # Outreach workflow
+    status: Mapped[str] = mapped_column(String(20), default="new", index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Self-sourced — no expiry
+    site_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    site_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    careers_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    emails: Mapped[list] = mapped_column(JSONB, default=list)
+    # Where each address was published, captured when it was read. The Spam
+    # Act puts the burden of proving consent on the sender, and inferred
+    # consent turns on facts about the page as it stood — so the facts are
+    # stored rather than reconstructed later from a page that has changed.
+    email_sources: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    audit: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+
+    # Google-cached — blanked after google_expires_at
+    google_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # rating, price level, opening hours, map link, type list
+    google_extra: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    google_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Outreach pipeline — each stage records its output and when it ran, so
+    # the UI can show what's done without a separate status machine.
+    harvest: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    harvested_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Which directions were proposed, and why — reviewed before building.
+    demo_plan: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    planned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    demo_slug: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    demo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The page itself. Self-contained, a few KB — the row is the one
+    # source of truth, so serving it is a SELECT rather than a deploy.
+    demo_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Off by default: a page carrying someone else's name and photographs
+    # becomes reachable by anyone with the URL only when asked for.
+    demo_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    # {direction: {html, thumb, rounds, remaining, built_at}} — several
+    # designs to compare; demo_active names the one that is published.
+    demo_variants: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    demo_active: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    demo_built_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    draft_subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    draft_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    drafted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    contacted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class LogEntryModel(Base):
     """ORM model for system log entries."""
 
@@ -444,6 +548,7 @@ class LogEntryModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     level: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    service: Mapped[str] = mapped_column(String(50), default="resume_tailor", index=True)
     category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)

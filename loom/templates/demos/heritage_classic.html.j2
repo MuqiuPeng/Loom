@@ -1,0 +1,22 @@
+{# Old-style serif throughout, centred wordmark, shop-sign rules. #}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#f6f1e4;color:#23301f;
+  font-family:Georgia,'Iowan Old Style',serif}
+.hero{padding:4rem 1.5rem 2.5rem;text-align:center}
+h1{font-family:Baskerville,'Hoefler Text',Garamond,serif;
+  font-size:clamp(2.4rem,8vw,4.5rem);margin:0;letter-spacing:.01em;
+  border-top:3px double currentColor;border-bottom:3px double currentColor;
+  padding:1rem 0;display:inline-block}
+.lede{margin:1.4rem auto 0;max-width:34rem;font-style:italic}
+/* min() not a bare rem: a plain max-width overrides the base rule that
+   keeps images inside the viewport, so 44rem blew out a 375px screen. */
+.hero-img{margin:2rem auto 0;max-width:min(44rem,100%)}
+.band{text-align:center}
+h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.22em;
+  font-variant:small-caps;margin:0 0 1.4rem}
+h3{font-size:1.2rem;margin:1.8rem 0 .6rem}
+.item{max-width:34rem;margin:0 auto;text-align:left}
+.facts-grid{display:grid;gap:2.5rem}
+@media(min-width:700px){.facts-grid{grid-template-columns:1fr 1fr}}
+{% endblock %}

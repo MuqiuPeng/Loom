@@ -355,6 +355,14 @@ async def save_extracted_experience(
             "type": bullet.type.value,
         })
 
+    # Profile changed via in-process write — schedule the Notion mirror sync
+    # (the HTTP mutation middleware never sees this path)
+    try:
+        from loom.services.notion_sync import schedule_sync
+        schedule_sync()
+    except Exception:
+        pass
+
     return {
         "experience_id": str(experience.id),
         "company": experience.company_en,

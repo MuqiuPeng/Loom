@@ -31,12 +31,25 @@ def get_engine() -> AsyncEngine:
     """Get or create the async database engine."""
     global _engine
     if _engine is None:
+        url = _get_url()
+        # Supabase's transaction pooler (port 6543) is pgbouncer: each
+        # statement can land on a different backend, so asyncpg's prepared
+        # statements break as soon as a connection is reused. Both caches must
+        # be off — with them on it appears to work, then fails later under
+        # reuse, which reads like an unrelated outage.
+        pooled = ":6543" in url or "pooler.supabase.com" in url
+        connect_args = (
+            {"statement_cache_size": 0, "prepared_statement_cache_size": 0}
+            if pooled
+            else {}
+        )
         _engine = create_async_engine(
-            _get_url(),
+            url,
             echo=os.getenv("DB_ECHO", "").lower() == "true",
             pool_pre_ping=True,
             pool_size=5,
             max_overflow=10,
+            connect_args=connect_args,
         )
     return _engine
 

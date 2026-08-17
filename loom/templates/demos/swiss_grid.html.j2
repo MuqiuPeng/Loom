@@ -1,0 +1,122 @@
+{#
+  Black, white, one red, and a visible grid.
+
+  Adapted from the Swiss Grid seed in xiaopu-ai/web-design (MIT, vendored at
+  .claude/skills/web-design). Its stack loads Google Fonts and a demo may not
+  make external requests, so only the structure came over — Helvetica is
+  already on every device that matters.
+
+  One family throughout, which is the one place in this set where display and
+  body sharing a face is the decision rather than the oversight the audit was
+  hunting. Swiss practice puts a single neutral face everywhere and gets its
+  contrast from weight, size and case. Do not "fix" this by pairing it.
+
+  The signature is the rotated label. Section headings turn ninety degrees
+  and stand in the left rail, running bottom-to-top along the grid line. That
+  is a real Swiss device and it does structural work: the rail is the same
+  width in every section, so the grid is legible without ever being drawn.
+
+  On a phone there is no room for a rail, so the labels lie back down. A
+  signature that makes the page unreadable one-handed is not worth keeping.
+#}
+{% extends "_base.html.j2" %}
+{% block style %}
+body{background:#fff;color:#111;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  font-weight:400}
+{# Red is the only colour. Everything else is black, white, or type at a
+   lighter weight — never a grey panel. #}
+.hero{padding:5rem 1.5rem 3rem}
+h1{font-size:clamp(2.8rem,10vw,6rem);font-weight:700;letter-spacing:-.04em;
+  line-height:.94;margin:0;max-width:16ch}
+.lede{margin-top:2rem;max-width:34rem;font-size:1rem;line-height:1.55;font-weight:400}
+.hero-img{margin-top:3rem;width:100%;max-height:26rem;object-fit:cover}
+
+.band{padding:3.5rem 0;border-top:2px solid #111}
+h2{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  margin:0 0 1.5rem;color:{{ palette.accent }}}
+h3{font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  margin:1.8rem 0 .7rem}
+
+{# Flush left, ragged right, always. #}
+.lede,.facts p,.item .desc,.closing p{text-align:left}
+.closing{background:none;border-top:2px solid #111;text-align:left;
+  padding-left:1.5rem;padding-right:1.5rem}
+.closing p{margin-left:0}
+.closing .cta{color:{{ palette.accent }}}
+
+.item{border-bottom:1px solid rgba(17,17,17,.18);padding:.6rem 0}
+.item .dots{border:0}
+.item .price{color:#111;font-variant-numeric:tabular-nums;font-weight:700}
+.facts p{line-height:1.7}
+.facts-grid{display:grid;gap:2.5rem}
+.gallery{gap:2px}
+.gallery img{width:100%}
+footer{text-align:left;padding-left:1.5rem}
+
+@media(min-width:820px){
+  {# The rail: one column width, identical in every section, so the grid
+     reads without a single rule being drawn for it. #}
+  .band{display:grid;grid-template-columns:9rem 1fr;gap:2.5rem}
+  .facts-grid{grid-template-columns:9rem 1fr 1fr;gap:2.5rem}
+  .facts-grid h2{grid-column:1}
+  h2{writing-mode:vertical-rl;transform:rotate(180deg);
+    justify-self:start;align-self:start;margin:0;letter-spacing:.22em}
+  .band > *:not(h2){grid-column:2}
+  .facts-grid > .facts:nth-of-type(1){grid-column:2}
+  .facts-grid > .facts:nth-of-type(2){grid-column:3}
+  .gallery{grid-template-columns:repeat(3,1fr)}
+}
+{% endblock %}
+
+{% block menu %}
+{# The base calls this section "Menu", which is right for a cafe and wrong
+   for every trade this direction suits. "Services" is wrong too — half of
+   them sell goods, not services. "What we do" covers a framer and a record
+   shop equally. #}
+  {% if menu %}
+  <section class="band">
+    <h2>What we do</h2>
+    <div>
+    {% for group, items in menu_groups %}
+      {% if group %}<h3>{{ group }}</h3>{% endif %}
+      {% for item in items %}
+      <div class="item">
+        <span class="name">{{ item.name }}
+          {% if item.description %}<span class="desc">{{ item.description }}</span>{% endif %}
+        </span>
+        <span class="dots"></span>
+        <span class="price">{{ item.price or "—" }}</span>
+      </div>
+      {% endfor %}
+    {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="band">
+    <h2>What we do</h2>
+    <div>
+      <span class="sample">{{ sample_note }}</span>
+      <p>{{ menu_sample }}</p>
+    </div>
+  </section>
+  {% endif %}
+{% endblock %}
+
+{% block facts %}
+  <section class="band facts-grid">
+    <h2>Details</h2>
+    <div class="facts">
+      <h3>Hours</h3>
+      {% if hours %}<p>{{ hours }}</p>
+      {% else %}<span class="sample">{{ sample_note }}</span><p>{{ hours_sample }}</p>{% endif %}
+    </div>
+    <div class="facts">
+      <h3>Find Us</h3>
+      {% if address %}<p>{{ address }}</p>{% endif %}
+      {% if phone %}<p><a href="tel:{{ phone_href }}">{{ phone }}</a></p>{% endif %}
+      {% if not address and not phone %}
+        <span class="sample">{{ sample_note }}</span><p>{{ location_sample }}</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

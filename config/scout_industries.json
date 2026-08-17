@@ -1,0 +1,137 @@
+{
+  "_comment": [
+    "What to search for, once you have decided where.",
+    "",
+    "Until now the query was a free-text box: one word, one search, and",
+    "whatever you happened to think of. That biases the whole pipeline toward",
+    "cafés, because cafés are what comes to mind. The trades below are often",
+    "better leads and almost never get typed in.",
+    "",
+    "`queries` are the terms actually sent to the map provider. Several per",
+    "industry because providers match on their own category names, and a",
+    "plumber is filed under 'plumber' in one place and 'plumbing service' in",
+    "another. Duplicates across queries are collapsed on place_id.",
+    "",
+    "`why` is the reason this trade is worth the call — the same discipline as",
+    "`note` in scout_areas.json. If you cannot write one, do not add the row.",
+    "",
+    "`visitor_led` marks trades whose customers are strangers choosing from a",
+    "map. Those are the ones where a broken site costs a booking tonight. The",
+    "rest sell to locals and repeat customers, where the site matters less and",
+    "the pitch has to be different."
+  ],
+  "industries": [
+    {
+      "key": "cafe",
+      "label": "Cafés & coffee",
+      "queries": ["cafe", "coffee shop", "espresso bar"],
+      "visitor_led": true,
+      "why": "Chosen off a map by someone standing on the street; photos and hours decide it"
+    },
+    {
+      "key": "restaurant",
+      "label": "Restaurants",
+      "queries": ["restaurant", "bistro", "dining"],
+      "visitor_led": true,
+      "why": "Menu and booking link are the whole shopfront for a visitor"
+    },
+    {
+      "key": "accommodation",
+      "label": "Accommodation",
+      "queries": ["hotel", "motel", "bed and breakfast", "guest house", "holiday rental"],
+      "visitor_led": true,
+      "why": "Booked entirely online, often weeks ahead; a bad site loses the whole stay"
+    },
+    {
+      "key": "bakery",
+      "label": "Bakeries & patisserie",
+      "queries": ["bakery", "patisserie", "cake shop"],
+      "visitor_led": true,
+      "why": "Impulse trade driven by photos and opening hours"
+    },
+    {
+      "key": "bar",
+      "label": "Bars & breweries",
+      "queries": ["bar", "pub", "brewery", "wine bar"],
+      "visitor_led": true,
+      "why": "Events and what's on tap change weekly and are usually stale online"
+    },
+    {
+      "key": "winery",
+      "label": "Wineries & cellar doors",
+      "queries": ["winery", "cellar door", "vineyard"],
+      "visitor_led": true,
+      "why": "Sell direct at high margin; tastings and shipping both run through the site"
+    },
+    {
+      "key": "tours",
+      "label": "Tours & activities",
+      "queries": ["tour operator", "guided tour", "boat charter", "adventure activity"],
+      "visitor_led": true,
+      "why": "Pure online purchase, no walk-ins; the booking flow is the business"
+    },
+    {
+      "key": "wellness",
+      "label": "Spa & wellness",
+      "queries": ["day spa", "massage", "wellness centre"],
+      "visitor_led": true,
+      "why": "Appointment-led, and the site carries the price list and the mood"
+    },
+    {
+      "key": "salon",
+      "label": "Hair & beauty",
+      "queries": ["hair salon", "barber", "beauty salon", "nail salon"],
+      "visitor_led": false,
+      "why": "Bookings move online first in this trade; many are still phone-only"
+    },
+    {
+      "key": "fitness",
+      "label": "Gyms & studios",
+      "queries": ["gym", "yoga studio", "pilates studio", "crossfit"],
+      "visitor_led": false,
+      "why": "Timetable and membership pricing are what a prospect comes to check"
+    },
+    {
+      "key": "trades",
+      "label": "Trades & home services",
+      "queries": ["plumber", "electrician", "builder", "landscaping", "painter"],
+      "visitor_led": false,
+      "why": "High job value, fierce local search competition, and rarely a real site"
+    },
+    {
+      "key": "auto",
+      "label": "Automotive",
+      "queries": ["mechanic", "auto repair", "car detailing", "tyre shop"],
+      "visitor_led": false,
+      "why": "Found by search in an emergency; hours and location have to be right"
+    },
+    {
+      "key": "retail",
+      "label": "Independent retail",
+      "queries": ["boutique", "gift shop", "homewares store", "bookshop"],
+      "visitor_led": true,
+      "why": "Competing with online; a shop with no site is invisible outside the street"
+    },
+    {
+      "key": "professional",
+      "label": "Professional services",
+      "queries": ["accountant", "bookkeeper", "law firm", "real estate agency"],
+      "visitor_led": false,
+      "why": "Credibility purchase — a dated site actively costs them enquiries"
+    },
+    {
+      "key": "health",
+      "label": "Allied health",
+      "queries": ["dentist", "physiotherapy", "chiropractor", "optometrist"],
+      "visitor_led": false,
+      "why": "Online booking is now expected; many still run on a template from 2014"
+    },
+    {
+      "key": "pet",
+      "label": "Pet services",
+      "queries": ["veterinarian", "pet grooming", "dog boarding"],
+      "visitor_led": false,
+      "why": "Booking-led and highly local; owners research before trusting anyone"
+    }
+  ]
+}

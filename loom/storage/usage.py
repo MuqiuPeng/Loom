@@ -14,7 +14,7 @@ class ModelPricing(str, Enum):
     """Model identifiers for pricing lookup."""
 
     HAIKU = "claude-haiku-4-5-20251001"
-    SONNET = "claude-sonnet-4-20250514"
+    SONNET = "claude-sonnet-5"
 
 
 # Pricing per 1M tokens (USD) - updated March 2025

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from loom.chat.organizer import Organizer, detect_organize_marker
+from loom.deps import CurrentUser
 from loom.chat.session import (
     ChatSession,
     build_system_prompt,
@@ -20,6 +21,7 @@ from loom.storage import DataStorage, InMemoryDataStorage, Profile
 from loom.storage.repository import ProfileRepository
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
 
 # Global instances (will be injected in production)
 _claude: Claude | None = None
@@ -216,7 +218,9 @@ async def stream_chat_response(
 
 
 @router.post("/message")
-async def send_message(request: Request, body: MessageRequest) -> StreamingResponse:
+async def send_message(
+    request: Request, body: MessageRequest, user_id: str = CurrentUser
+) -> StreamingResponse:
     """Send a message and get streaming response.
 
     Returns SSE stream with events:
@@ -240,6 +244,7 @@ async def send_message(request: Request, body: MessageRequest) -> StreamingRespo
     # Get or create session with language
     session = session_store.get_or_create(
         body.session_id,
+        user_id=user_id,
         language=body.language,
     )
 
@@ -266,9 +271,10 @@ async def send_message(request: Request, body: MessageRequest) -> StreamingRespo
 @router.get("/history")
 async def get_chat_history(
     session_id: str = Query(..., description="Session ID"),
+    user_id: str = CurrentUser,
 ) -> ChatHistoryResponse:
     """Get chat history for a session."""
-    session = session_store.get(session_id)
+    session = session_store.get(session_id, user_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -288,9 +294,9 @@ async def get_chat_history(
 
 
 @router.delete("/session/{session_id}")
-async def delete_session(session_id: str) -> dict[str, str]:
+async def delete_session(session_id: str, user_id: str = CurrentUser) -> dict[str, str]:
     """Delete a chat session."""
-    deleted = session_store.delete(session_id)
+    deleted = session_store.delete(session_id, user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"status": "deleted", "session_id": session_id}
@@ -303,7 +309,9 @@ class RollbackRequest(BaseModel):
 
 
 @router.post("/session/{session_id}/rollback")
-async def rollback_messages(session_id: str, body: RollbackRequest) -> dict[str, Any]:
+async def rollback_messages(
+    session_id: str, body: RollbackRequest, user_id: str = CurrentUser
+) -> dict[str, Any]:
     """Rollback (delete) the last N messages from a session.
 
     Typically used to remove the last user message and assistant response
@@ -316,7 +324,7 @@ async def rollback_messages(session_id: str, body: RollbackRequest) -> dict[str,
     Returns:
         Updated session info
     """
-    session = session_store.get(session_id)
+    session = session_store.get(session_id, user_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -338,7 +346,7 @@ async def rollback_messages(session_id: str, body: RollbackRequest) -> dict[str,
 
 
 @router.get("/sessions")
-async def list_sessions(user_id: str = Query(default="local")) -> list[dict[str, Any]]:
+async def list_sessions(user_id: str = CurrentUser) -> list[dict[str, Any]]:
     """List all sessions for a user."""
     sessions = session_store.list_sessions(user_id)
     return [
