@@ -395,6 +395,18 @@ async def harvest_site(
         return harvest
 
     harvest.menu = [i for i in data.menu if i.name]
+
+    # A menu that is a PDF or a photograph is invisible to everything above:
+    # the crawler will not follow it because it is not a page. Read only when
+    # the pages themselves yielded none — a site that lists its menu in HTML
+    # and also links a printable copy should not be read twice, and the HTML
+    # is the better source.
+    if not harvest.menu:
+        from loom.services import menu_doc
+
+        for document in menu_doc.find(pages.get(base, ""), base)[:1]:
+            harvest.menu = await menu_doc.read(document, claude=claude)
+
     harvest.hours = data.hours
     harvest.address = data.address
     harvest.phone = data.phone

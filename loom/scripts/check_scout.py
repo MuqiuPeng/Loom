@@ -360,6 +360,47 @@ async def image_pick_checks() -> None:
     )
 
 
+def menu_doc_checks() -> None:
+    """Which links are the menu, and which only look like it."""
+    from loom.services import menu_doc
+    from loom.services.site_audit import audit_response
+
+    print("\n-- menu as a file --")
+
+    base = "https://shop.example/"
+    def find(html):
+        return menu_doc.find(html, base)
+
+    # The real one, typo and all: the anchor says Menu, the file says "manu".
+    real = '<a href="https://cdn.shopify.com/s/files/new_manu_all_items.pdf?v=1">Menu</a>'
+    check(find(real) == ["https://cdn.shopify.com/s/files/new_manu_all_items.pdf?v=1"],
+          "the anchor text finds it even when the filename is misspelled")
+
+    check(find('<a href="/menus/winter.pdf">Download</a>'),
+          "the address finds it when the anchor says nothing useful")
+    check(find('<a href="/drinks-list.jpg">Drinks List</a>'),
+          "a photographed menu counts")
+
+    check(not find('<a href="/pages/menu">Menu</a>'),
+          "a menu that is a page is not a menu that is a file")
+    check(not find('<a href="/terms.pdf">Terms &amp; Conditions</a>'),
+          "an unrelated PDF is not the menu")
+    check(not find('<a href="/order-online">Order Online</a>'),
+          "ordering is not the menu, and the page hints would have said it was")
+
+    # The finding the outreach email leads on.
+    page = "<html><head><title>Cafe</title></head><body>" + ("x" * 3000) + real + "</body></html>"
+    codes = {f.code: f for f in audit_response(
+        base, final_url=base, status_code=200, load_ms=300, html=page).findings}
+    check("menu_is_a_file" in codes, "a file menu is a finding")
+    check(codes["menu_is_a_file"].weight >= 3,
+          "and weighs enough to open an email, which is the point of it")
+    clean = page.replace(real, '<a href="/pages/menu">Menu</a>')
+    check("menu_is_a_file" not in {f.code for f in audit_response(
+        base, final_url=base, status_code=200, load_ms=300, html=clean).findings},
+        "a normal menu page raises nothing")
+
+
 async def render_fallback_checks() -> None:
     """The rendering fallback's contract, with no browser in the room.
 
@@ -403,6 +444,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    menu_doc_checks()
     await render_fallback_checks()
     if failures:
         print(f"\n{len(failures)} check(s) failed")

@@ -292,6 +292,28 @@ def audit_response(
             )
         )
 
+    # A menu that is a file rather than a page. Ordinary for hospitality — the
+    # menu changes weekly and whoever changes it has a PDF — and a real cost
+    # twice over: a phone gets a document to pinch and zoom, and a search
+    # engine gets nothing to read, so the page can never rank for anything the
+    # kitchen actually sells.
+    from loom.services import menu_doc
+
+    documents = menu_doc.find(html, final_url or url)
+    if documents:
+        kind = "PDF" if ".pdf" in documents[0].lower() else "an image"
+        findings.append(
+            Finding(
+                code="menu_is_a_file",
+                weight=3,
+                label="Menu is a download",
+                detail=(
+                    f"The menu link opens {kind} rather than a page — it has to "
+                    "be zoomed on a phone, and Google can't read a word of it"
+                ),
+            )
+        )
+
     years = [int(y) for y in _COPYRIGHT_RE.findall(html) if y.isdigit()]
     if years:
         newest = max(years)

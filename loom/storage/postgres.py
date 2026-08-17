@@ -1143,6 +1143,12 @@ class PostgresDataStorage(DataStorage):
         "demo_built_at", "draft_subject", "draft_body", "drafted_at", "contacted_at",
         "followed_up_at",
         "email_sources",
+        # The audit was written once, when the lead was first scouted, and
+        # there was no way to write it again — so a re-audit ran, produced
+        # findings, reported success and changed nothing. That went unnoticed
+        # until a new finding type was added and could not reach a single
+        # existing lead. `score` travels with it for the same reason.
+        "audit", "score",
     )
 
     async def update_scout_lead(
@@ -1159,6 +1165,17 @@ class PostgresDataStorage(DataStorage):
         row = result.scalar_one_or_none()
         if row is None:
             return False
+        # Anything outside the allowlist used to be dropped here, and the call
+        # still returned True. A caller that stored a freshly computed audit
+        # got a success and no audit — the field was simply not on the list,
+        # and nothing anywhere said so. An allowlist is the right shape; a
+        # silent one is not, because the failure looks exactly like success.
+        unknown = sorted(set(data) - set(self._LEAD_WRITABLE))
+        if unknown:
+            raise ValueError(
+                f"scout_leads has no writable field(s) {', '.join(unknown)} — "
+                "add them to _LEAD_WRITABLE if a pipeline stage should own them"
+            )
         for key in self._LEAD_WRITABLE:
             if key in data:
                 setattr(row, key, data[key])

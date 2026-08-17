@@ -100,7 +100,8 @@
     "tiny_text": "the text is too small to read on a phone",
     "phone_not_tappable": "your phone number is on there as plain text — on a mobile you can't tap it to call, you have to memorise it and type it back in",
     "no_link_preview": "when someone shares your address on Facebook or in a WhatsApp group it comes up as an empty grey box instead of a photo of the place",
-    "no_favicon": "there's no little icon on the browser tab, so it shows a blank sheet of paper next to your name"
+    "no_favicon": "there's no little icon on the browser tab, so it shows a blank sheet of paper next to your name",
+    "menu_is_a_file": "your menu opens as a download rather than a page — on a phone you have to pinch and zoom to read it, and Google can't index a word of what you serve"
   },
   "min_problem_weight": 3,
   "subject_hooks": {
@@ -125,6 +126,7 @@
     "slow": "how long your site takes to load",
     "stale": "your website",
     "thin": "your website",
-    "broken_images": "the photos on your site"
+    "broken_images": "the photos on your site",
+    "menu_is_a_file": "your menu on a phone"
   }
 }
