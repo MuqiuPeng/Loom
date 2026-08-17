@@ -5,7 +5,6 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from loom.storage.base import BaseEntity
 from loom.storage.bullet import Bullet
 from loom.storage.profile import Education, Experience, Profile, Skill
 from loom.storage.project import Project

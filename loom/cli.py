@@ -5,7 +5,6 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import click
 from dotenv import load_dotenv
@@ -29,7 +28,7 @@ def main():
 @click.option("--seed", is_flag=True, help="Seed sample profile data for testing")
 @click.option("--db", type=click.Choice(["memory", "postgres"]), default="memory",
               help="Storage backend (default: memory)")
-def run_resume(jd: Optional[str], jd_file: Optional[str], lang: str, output_dir: str,
+def run_resume(jd: str | None, jd_file: str | None, lang: str, output_dir: str,
                seed: bool, db: str):
     """Run the resume-tailor workflow.
 
@@ -79,7 +78,7 @@ async def _run_resume_workflow(jd_text: str, lang: str, output_dir: str, seed: b
 
 async def _execute_workflow(storage, jd_text: str, lang: str, output_dir: str, seed: bool = False):
     """Execute the workflow with given storage."""
-    from loom.core import WorkflowRunner, step_registry
+    from loom.core import step_registry
     from loom.storage.init_db import get_workflow_definitions
     from loom.triggers import ManualTrigger
 
@@ -108,9 +107,6 @@ async def _execute_workflow(storage, jd_text: str, lang: str, output_dir: str, s
 
     click.echo(f"WorkflowRun ID: {context.workflow_id}")
     click.echo()
-
-    # Run workflow
-    runner = WorkflowRunner(workflow_def, storage)
 
     start_time = datetime.now()
     step_times = {}
@@ -188,7 +184,7 @@ async def _execute_workflow(storage, jd_text: str, lang: str, output_dir: str, s
 
     except Exception as e:
         elapsed = (datetime.now() - start_time).total_seconds()
-        click.echo(f" ✗ Failed")
+        click.echo(" ✗ Failed")
         click.echo()
         click.echo(f"✗ Workflow failed after {elapsed:.1f}s", err=True)
         click.echo(f"  Step: {current_step}", err=True)
@@ -224,6 +220,7 @@ def _print_run_summary(context, step_times: dict):
 async def _print_usage_summary(storage):
     """Print token usage summary for this run."""
     from decimal import Decimal
+
     from loom.storage import UsageRepository
 
     repo = UsageRepository(storage)
@@ -265,7 +262,7 @@ def resume_status(limit: int):
 
 @main.command("resume-retry")
 @click.option("--run-id", type=str, help="WorkflowRun ID to retry")
-def resume_retry(run_id: Optional[str]):
+def resume_retry(run_id: str | None):
     """Retry a failed workflow from checkpoint.
 
     If --run-id is not provided, retries the most recent failed run.
@@ -433,7 +430,7 @@ def serve(host: str, port: int | None, reload: bool):
 
     if port is None:
         port = int(os.environ.get("LOOM_API_PORT", 8001))
-    click.echo(f"Starting Loom API server...")
+    click.echo("Starting Loom API server...")
     click.echo(f"  Host: {host}")
     click.echo(f"  Port: {port}")
     click.echo(f"  Reload: {reload}")
@@ -465,7 +462,6 @@ def usage(days: int, recent: int, db: str):
 
 async def _show_usage(days: int, recent: int, db: str):
     """Display usage statistics."""
-    from loom.storage import UsageRepository
 
     # Initialize storage
     if db == "postgres":
@@ -541,7 +537,7 @@ async def _display_usage(storage, days: int, recent: int):
 @main.command("backfill-bullets")
 @click.option("--dry-run", is_flag=True, help="Preview only, don't write to storage")
 @click.option("--limit", type=int, default=None, help="Only process first N bullets")
-def backfill_bullets(dry_run: bool, limit: Optional[int]):
+def backfill_bullets(dry_run: bool, limit: int | None):
     """Backfill star_data and tech_stack for bullets missing them.
 
     Uses Claude Haiku to extract STAR structure and tech stack
@@ -550,7 +546,7 @@ def backfill_bullets(dry_run: bool, limit: Optional[int]):
     asyncio.run(_backfill_bullets(dry_run, limit))
 
 
-async def _backfill_bullets(dry_run: bool, limit: Optional[int]):
+async def _backfill_bullets(dry_run: bool, limit: int | None):
     """Run bullet backfill."""
     from loom.scripts.backfill_bullets import backfill_bullets as do_backfill
     from loom.storage.json_file import JsonFileDataStorage

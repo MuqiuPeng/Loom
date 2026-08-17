@@ -1,14 +1,13 @@
 """Backfill star_data and tech_stack for existing bullets using Claude Haiku."""
 
-import asyncio
 import json
 import logging
 from pathlib import Path
 from typing import Any
 
-from loom.llm import Claude, Model
 from loom.current_user import get_current_user
-from loom.storage.repository import BulletRepository, DataStorage, ProfileRepository
+from loom.llm import Claude, Model
+from loom.storage.repository import BulletRepository, DataStorage
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,6 @@ async def backfill_bullets(
     """
     claude = Claude()
     bullet_repo = BulletRepository(storage)
-    profile_repo = ProfileRepository(storage)
 
     # Get all experiences with bullets
     exp_bullets = await bullet_repo.get_all_bullets_for_user(get_current_user())
@@ -161,7 +159,7 @@ async def backfill_bullets(
                 tech_count = len(tech_stack)
                 print(f"    OK: S={s_len} T={t_len} A={a_len} R={r_len} tech={tech_count} items")
             else:
-                print(f"    SKIP: extraction returned empty")
+                print("    SKIP: extraction returned empty")
                 skipped += 1
 
         except Exception as e:
@@ -179,7 +177,7 @@ async def backfill_bullets(
         fail_path.write_text(json.dumps(failures, indent=2, ensure_ascii=False))
         print(f"\nFailures written to {fail_path}")
 
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"  Total needing backfill: {total}")
     print(f"  Updated: {updated}")
     print(f"  Skipped (had data): {skipped}")

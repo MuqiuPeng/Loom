@@ -1,6 +1,5 @@
 """Step registry - maps step names to implementation classes."""
 
-from typing import Type
 
 from loom.core.step import Step
 
@@ -19,7 +18,7 @@ class StepRegistry:
     """
 
     _instance: "StepRegistry | None" = None
-    _steps: dict[str, Type[Step]]
+    _steps: dict[str, type[Step]]
 
     def __new__(cls) -> "StepRegistry":
         """Singleton pattern."""
@@ -28,7 +27,7 @@ class StepRegistry:
             cls._instance._steps = {}
         return cls._instance
 
-    def register(self, name: str, step_class: Type[Step]) -> None:
+    def register(self, name: str, step_class: type[Step]) -> None:
         """Register a step class with a name.
 
         Args:

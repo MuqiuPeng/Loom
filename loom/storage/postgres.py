@@ -25,7 +25,7 @@ from sqlalchemy import delete, func, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from loom.current_user import get_current_user
-from loom.storage.bullet import Bullet, BulletType, Confidence
+from loom.storage.bullet import Bullet
 from loom.storage.database import get_session
 from loom.storage.models import (
     BulletModel,
@@ -40,7 +40,7 @@ from loom.storage.models import (
     TaskModel,
     TokenUsageModel,
 )
-from loom.storage.profile import Education, Experience, Profile, Skill, SkillLevel
+from loom.storage.profile import Education, Experience, Profile, Skill
 from loom.storage.project import Project
 from loom.storage.repository import DataStorage
 from loom.storage.resume import JDRecord, ResumeArtifact, Task

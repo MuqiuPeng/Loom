@@ -47,7 +47,31 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    # str+Enum is load-bearing here: these values are serialised into JSONB,
+    # into Notion properties and into the API's JSON, and `str` inheritance is
+    # what makes them come out as their value rather than "Model.SONNET".
+    # StrEnum would be equivalent on 3.11 but the migration is not free and
+    # the current form is correct.
+    "UP042",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# load_dotenv() has to run before the loom modules are imported, because they
+# read their configuration at import time. The import block therefore cannot
+# sit at the top of the file, and that ordering is the point rather than an
+# oversight.
+"loom/api.py" = ["E402"]
+"loom/storage/postgres.py" = ["E402", "N806"]
+# MERGE_RULES is a constant that happens to live inside a function.
+"loom/steps/generate_resume.py" = ["N806"]
+# Alembic writes these files from its own template, and the template still
+# uses typing.Sequence and Union. Rewriting generated boilerplate to satisfy
+# a style rule means every new migration starts non-compliant and someone
+# hand-edits it — so the template is left alone instead.
+"loom/storage/migrations/versions/*.py" = ["UP007", "UP035"]
+"loom/storage/migrations/env.py" = ["UP007", "UP035"]
 
 [tool.mypy]
 python_version = "3.11"

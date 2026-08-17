@@ -7,8 +7,8 @@ Create Date: 2026-03-31
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "007"
 down_revision: Union[str, None] = "006"

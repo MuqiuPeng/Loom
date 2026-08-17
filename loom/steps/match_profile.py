@@ -1,6 +1,5 @@
 """MatchProfileStep - semantic matching between profile and JD."""
 
-import json
 from typing import Any
 from uuid import UUID
 

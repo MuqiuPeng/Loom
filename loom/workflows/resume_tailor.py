@@ -1,5 +1,10 @@
 """Resume-tailor workflow definition."""
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from loom.storage.repository import WorkflowStorage
+
 from loom.storage import TriggerType, WorkflowDefinition
 
 # Workflow definition

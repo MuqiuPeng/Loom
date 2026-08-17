@@ -1,12 +1,12 @@
 """Organizer module - detects [ORGANIZE] marker and extracts structured data."""
 
-import re
 from datetime import date
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from loom.chat.session import ChatSession
 from loom.llm.client import Claude, Model
 from loom.storage import (
     Bullet,
@@ -14,10 +14,7 @@ from loom.storage import (
     Confidence,
     DataStorage,
     Experience,
-    Profile,
 )
-from loom.chat.session import ChatMessage, ChatSession
-
 
 ORGANIZE_MARKER = "[ORGANIZE]"
 

@@ -23,7 +23,7 @@ RESIDUE_PATTERNS: list[tuple[str, str]] = [
 ]
 
 
-class ContractViolation(Exception):
+class ContractError(Exception):
     """Rendered output is missing content the caller supplied."""
 
 
@@ -146,7 +146,7 @@ def assert_contract(ctx: dict, content_md: str, pdf_text: str | None = None) -> 
         problems += [f"[pdf] {p}" for p in pdf_missing if p not in problems]
     problems += check_residue(content_md, pdf_text)
     if problems:
-        raise ContractViolation(
+        raise ContractError(
             f"{len(problems)} item(s) supplied by the caller did not survive rendering: "
             + "; ".join(problems[:12])
             + (f" … +{len(problems) - 12} more" if len(problems) > 12 else "")

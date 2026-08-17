@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -130,7 +130,7 @@ async def _build_payload(storage: Any) -> dict:
     return {
         "source": "loom",
         "schema": "loom-profile-mirror/v1",
-        "synced_at": datetime.now(timezone.utc).isoformat(),
+        "synced_at": datetime.now(UTC).isoformat(),
         "profile": profile.model_dump(mode="json"),
         "experiences": experiences,
         # All projects, standalone and experience-linked alike; the

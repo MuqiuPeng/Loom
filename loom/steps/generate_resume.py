@@ -812,9 +812,6 @@ class GenerateResumeStep(Step):
 
         # ── Phase 2: Per-project bullet generation ───────────────
 
-        bullet_text = " ".join(
-            b for bs in phase1_results.values() for b in bs
-        ).lower()
 
         # Use Claude project scores from SelectBulletsStep
         claude_project_scores = integration_pool.get("project_scores", [])
@@ -1044,7 +1041,6 @@ class GenerateResumeStep(Step):
         if linked_projects:
             linked_parts = []
             for proj in linked_projects:
-                proj_name = proj.get("name", "")
                 for b in proj.get("bullets", [])[:3]:
                     # Use language-resolved content (integration_pool now fetched with lang)
                     content = b.get("content") or b.get("content_en") or ""

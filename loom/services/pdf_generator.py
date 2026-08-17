@@ -107,7 +107,7 @@ class PDFGenerator:
                     log_file = os.path.join(tmp_dir, "resume.log")
                     error_lines = ""
                     if os.path.exists(log_file):
-                        with open(log_file, "r", errors="replace") as f:
+                        with open(log_file, errors="replace") as f:
                             all_lines = f.readlines()
                             error_lines = "".join(all_lines[-20:])
                     if loom_log:

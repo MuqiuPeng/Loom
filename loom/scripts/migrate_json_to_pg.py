@@ -1,11 +1,7 @@
 """Migrate all data from JsonFileDataStorage to PostgreSQL."""
 
 import asyncio
-import json
 import shutil
-from datetime import datetime
-from pathlib import Path
-from uuid import UUID
 
 from dotenv import load_dotenv
 

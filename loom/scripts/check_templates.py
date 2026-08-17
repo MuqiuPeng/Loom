@@ -16,7 +16,7 @@ Exits non-zero on any violation, so it can gate a commit.
 
 import sys
 
-from loom.services.render_contract import ContractViolation, assert_contract
+from loom.services.render_contract import ContractError, assert_contract
 from loom.services.resume_render import render_resume
 
 GOLDEN = {
@@ -104,7 +104,7 @@ def main() -> int:
                     missing = check_pdf_text(GOLDEN, body)
                     if missing:
                         problems += [f"{language}.tex missing {m}" for m in missing]
-            except ContractViolation as e:
+            except ContractError as e:
                 problems.append(f"{language}.{kind}: {e}")
 
             problems += _check_order(body, expected, f"{language}.{kind}")

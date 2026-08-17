@@ -2,20 +2,20 @@
 
 import asyncio
 import json
-from typing import Any, AsyncGenerator
-from uuid import UUID
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from loom.chat.organizer import Organizer, detect_organize_marker
-from loom.deps import CurrentUser
 from loom.chat.session import (
     ChatSession,
     build_system_prompt,
     session_store,
 )
+from loom.deps import CurrentUser
 from loom.llm.client import Claude, Model
 from loom.storage import DataStorage, InMemoryDataStorage, Profile
 from loom.storage.repository import ProfileRepository
@@ -333,7 +333,6 @@ async def rollback_messages(
     if messages_to_remove > 0:
         session.messages = session.messages[:-messages_to_remove]
         # Adjust turn count (each user message is a turn)
-        turns_removed = sum(1 for _ in range(messages_to_remove) if messages_to_remove > 0)
         session.turn_count = max(0, session.turn_count - (messages_to_remove // 2))
         session_store.save(session)
 

@@ -28,7 +28,6 @@ def get_storage() -> DataStorage:
     if _storage is None:
         if DB_BACKEND == "postgres":
             # Import here to avoid requiring asyncpg when not using postgres
-            from loom.storage.postgres import PostgresDataStorage
             # Note: PostgresDataStorage needs a session, so we can't use it directly
             # For now, return InMemoryDataStorage; CLI uses PostgresDataStorageContext
             _storage = InMemoryDataStorage()

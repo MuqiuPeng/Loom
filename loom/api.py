@@ -6,12 +6,13 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
+
 load_dotenv()
 from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
@@ -19,7 +20,6 @@ from pydantic import BaseModel, Field
 from loom.chat import chat_router
 from loom.current_user import set_current_user
 from loom.deps import USER_HEADER, CurrentUser, OwnerOnly
-from loom.storage.bullet import Bullet, Confidence
 from loom.storage.profile import Education, Experience, Profile, Skill, SkillLevel
 from loom.storage.project import Project
 from loom.storage.repository import DataStorage, ProfileRepository
@@ -1416,6 +1416,7 @@ async def render_resume_endpoint(request: RenderResumeRequest):
     if request.notion_page_id and result.get("pdf_url"):
         try:
             import httpx as _httpx
+
             from loom.services.job_watcher import _headers, _write_back_success
             async with _httpx.AsyncClient(headers=_headers(), timeout=30.0) as c:
                 await _write_back_success(c, request.notion_page_id, result["pdf_url"])
@@ -1451,6 +1452,8 @@ async def add_job_to_tracker(request: AddJobRequest, owner: str = OwnerOnly):
     """
     from loom.services.job_watcher import (
         _enabled as jw_enabled,
+    )
+    from loom.services.job_watcher import (
         create_tracker_row,
         process_job_tracker,
     )
@@ -1482,6 +1485,8 @@ async def list_pending_jobs(owner: str = OwnerOnly):
 
     from loom.services.job_watcher import (
         _enabled as jw_enabled,
+    )
+    from loom.services.job_watcher import (
         _headers,
         _query_pending,
     )
@@ -1509,9 +1514,11 @@ async def process_job_tracker_now(
     """
     from loom.services.job_watcher import (
         MAX_JOBS_PER_RUN,
-        _enabled as jw_enabled,
         _run_lock,
         process_job_tracker,
+    )
+    from loom.services.job_watcher import (
+        _enabled as jw_enabled,
     )
 
     if not jw_enabled():

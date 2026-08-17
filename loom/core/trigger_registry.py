@@ -1,6 +1,5 @@
 """Trigger registry - maps trigger names to implementation classes."""
 
-from typing import Type
 
 from loom.core.trigger import Trigger
 
@@ -19,7 +18,7 @@ class TriggerRegistry:
     """
 
     _instance: "TriggerRegistry | None" = None
-    _triggers: dict[str, Type[Trigger]]
+    _triggers: dict[str, type[Trigger]]
 
     def __new__(cls) -> "TriggerRegistry":
         """Singleton pattern."""
@@ -28,7 +27,7 @@ class TriggerRegistry:
             cls._instance._triggers = {}
         return cls._instance
 
-    def register(self, name: str, trigger_class: Type[Trigger]) -> None:
+    def register(self, name: str, trigger_class: type[Trigger]) -> None:
         """Register a trigger class with a name.
 
         Args:

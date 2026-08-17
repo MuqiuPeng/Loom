@@ -54,7 +54,7 @@ class Claude:
         self.client = AsyncAnthropic(
             api_key=api_key or os.getenv("ANTHROPIC_API_KEY")
         )
-        self._storage: "DataStorage | None" = None
+        self._storage: DataStorage | None = None
         self._workflow_run_id: UUID | None = None
         self._step_name: str | None = None
         self._user_id: str = "local"

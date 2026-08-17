@@ -15,7 +15,6 @@ import os
 import re
 from datetime import datetime, timedelta
 from typing import Any
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import httpx
