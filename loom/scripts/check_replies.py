@@ -332,6 +332,64 @@ def consent_checks() -> None:
           "the recipient is the best-argued address, not emails[0]")
 
 
+def provenance_checks() -> None:
+    """The email must not claim it used content it never found."""
+    from loom.services.email_templates import render, suggest_template
+
+    print("\n-- what the demo was built from --")
+
+    lead = {
+        "google_name": "The Gong Cafe", "kind": "freelance", "status": "new",
+        "site_url": "http://gong.test/", "demo_slug": "abc123", "demo_public": True,
+        "emails": ["owner@gong.test"],
+        "email_sources": {"owner@gong.test": {"url": "http://gong.test/",
+                                              "refuses_unsolicited": False}},
+        "audit": {"findings": [{"code": "placeholder", "weight": 4,
+                                "label": "Placeholder page", "detail": "unconfigured"}]},
+    }
+
+    def body(over):
+        merged = {**lead, **over}
+        return render(suggest_template(merged), merged,
+                      public_base="https://p").get("body", "")
+
+    empty = body({"harvest": {}})
+    full = body({"harvest": {"menu": [{"name": "Flat White"}], "images": ["a.jpg"]}})
+
+    # The claim that started this: it was in the template unconditionally, and
+    # the owner disproves it by opening their own site.
+    check("already on your site" not in empty,
+          "a demo built from nothing does not claim to be built from their site")
+    check("placeholder" in empty.lower(),
+          "it says the content is placeholder instead")
+    check("already on your site" in full,
+          "a demo built from a real harvest still says so")
+
+    # No site at all is a different letter, and used to depend on the audit
+    # having produced a finding rather than on there being no address.
+    # What a site-less lead really looks like: the scout records a no_website
+    # finding rather than an empty audit, and that finding is the pitch.
+    no_site = {
+        "site_url": "",
+        "harvest": {},
+        "audit": {"findings": [{"code": "no_website", "weight": 5,
+                                "label": "No website at all", "detail": ""}]},
+    }
+    check(suggest_template({**lead, **no_site}) == "first_contact_no_site",
+          "a lead with no site_url gets the no-website letter")
+    letter = body(no_site)
+    check("doesn't come up with a website" in letter,
+          "and that letter never describes a site it did not visit")
+    check("already on your site" not in letter,
+          "nor claims to have built anything from one")
+
+    # The template is chosen on the address, not only on the finding: a lead
+    # saved by hand with no site_url and no audit yet must not get the letter
+    # that opens by describing the site it just looked at.
+    check(suggest_template({**lead, "site_url": "", "audit": {}}) == "first_contact_no_site",
+          "an unaudited lead with no address gets it too")
+
+
 def follow_up_checks() -> None:
     """When the one follow-up goes, and the many reasons it does not."""
     from datetime import datetime
@@ -397,6 +455,7 @@ def main() -> int:
     html_checks()
     identity_checks()
     consent_checks()
+    provenance_checks()
     follow_up_checks()
     if failures:
         print(f"\n{len(failures)} check(s) failed")

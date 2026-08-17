@@ -39,7 +39,7 @@
       "label": "First contact",
       "needs_signature": "outreach",
       "subject": "{business} — {subject_hook}",
-      "body": "Hi,\n\nI had a look at {business} on my phone and {problem_sentence}.\n\nI rebuilt it as it could be — your own name and details, built from what's already on your site:\n{demo_url}\n\nIt's a mock-up, not a live site, and it takes me {timeline} to finish properly for {price}. One payment, no monthly fee, and you own it.\n\nWorth a look?"
+      "body": "Hi,\n\nI had a look at {business} on my phone and {problem_sentence}.\n\nI rebuilt it as it could be — {built_from}:\n{demo_url}\n\nIt's a mock-up, not a live site, and it takes me {timeline} to finish properly for {price}. One payment, no monthly fee, and you own it.\n\nWorth a look?"
     },
     "first_contact_no_site": {
       "label": "First contact — no website",
@@ -128,5 +128,10 @@
     "thin": "your website",
     "broken_images": "the photos on your site",
     "menu_is_a_file": "your menu on a phone"
+  },
+  "source_notes": {
+    "_note": "How the demo describes where its content came from. Chosen by whether the harvest actually produced anything: claiming a page was built from their site when their site is a 404 or a blank install is a claim the owner can disprove in one click, in the first email they get from a stranger.",
+    "harvested": "your own name and details, built from what's already on your site",
+    "placeholder": "your own name, address and hours — the photos and wording are placeholders until you send me yours"
   }
 }

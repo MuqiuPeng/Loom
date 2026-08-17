@@ -129,6 +129,19 @@ def slots_from_lead(lead: dict, **extra: Any) -> dict[str, str]:
     # recipient — the one link the whole message exists to deliver.
     shareable = bool(slug and base and lead.get("demo_public"))
 
+    # Where the demo's content came from, said truthfully. "built from what's
+    # already on your site" was written into the template unconditionally, and
+    # is false for every lead whose site is a 404 or an unconfigured install —
+    # the harvest comes back empty, the demo is assembled from placeholders,
+    # and the first email a stranger sends makes a claim the owner disproves by
+    # opening the page. Keyed on what the harvest actually yielded rather than
+    # on whether a site_url exists, because a site that exists and holds
+    # nothing is the common case, not the rare one.
+    harvest = lead.get("harvest") or {}
+    harvested = bool(harvest.get("menu") or harvest.get("about") or harvest.get("images"))
+    notes = cfg.get("source_notes", {})
+    built_from = notes.get("harvested" if harvested else "placeholder", "")
+
     phrases = cfg.get("problem_phrases", {})
     # The label is a column heading; the email needs a clause.
     phrase = phrases.get(top.get("code", "")) or top.get("detail", "")
@@ -149,6 +162,7 @@ def slots_from_lead(lead: dict, **extra: Any) -> dict[str, str]:
         "problem_sentence": phrase or _sentence(top.get("label", "")),
         "problem_detail": top.get("detail", ""),
         "subject_hook": hook,
+        "built_from": built_from,
         "sender_name": sender.get("name", ""),
         # ACMA's guidance asks for the business name, not only a person's —
         # it is what identifies who is actually offering the service.
@@ -257,6 +271,12 @@ def suggest_template(lead: dict) -> str:
         return "quote"
     if lead.get("status") == "won":
         return "handover"
+    # Two ways to have no website: the audit said so, or there is simply no
+    # address to audit. The second was not checked, so a lead saved without a
+    # site_url — which is most of what a scout finds — got the template that
+    # opens by describing the site it just looked at.
     audit = lead.get("audit") or {}
     codes = {f.get("code") for f in (audit.get("findings") or [])}
-    return "first_contact_no_site" if "no_website" in codes else "first_contact"
+    if "no_website" in codes or not (lead.get("site_url") or "").strip():
+        return "first_contact_no_site"
+    return "first_contact"
