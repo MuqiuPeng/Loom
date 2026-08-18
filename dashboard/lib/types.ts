@@ -274,6 +274,8 @@ export interface ScoutLead {
   demo_options: DemoOption[];
   demo_plan: DemoPlan | null;
   planned_at: string | null;
+  drafted_at: string | null;
+  followed_up_at: string | null;
   draft_subject: string | null;
   draft_body: string | null;
   contacted_at: string | null;

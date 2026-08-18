@@ -360,6 +360,31 @@ async def image_pick_checks() -> None:
     )
 
 
+def text_and_score_checks() -> None:
+    """Two facts that reach a shop owner, and used to reach them mangled."""
+    from loom.services.company_scout import _text
+    from loom.services.site_audit import audit_response
+
+    print("\n-- extracted text and score --")
+
+    # site_title feeds the panel and, when Google has no name, the greeting of
+    # a cold email. "Dulwich Hill &ndash; Cafe Calibre" was what it held.
+    check(_text("Venue &ndash; Dulwich Hill") == "Venue – Dulwich Hill",
+          "an HTML entity is decoded, not carried through")
+    check(_text("Bob &amp; Sons") == "Bob & Sons", "and so is an ampersand")
+    check(_text("Two\n  lines   spaced") == "Two lines spaced",
+          "newlines and runs collapse to single spaces")
+    check(_text("<b>Coffee</b> Bar") == "Coffee Bar", "tags still go")
+
+    # The audit carries its own total; the column exists only so a list can
+    # sort. They disagreed on a real lead — score 1 over findings of 3, 3, 1.
+    page = "<html><head><title>x</title></head><body>" + ("y" * 3000) + "</body></html>"
+    audit = audit_response("https://x.test/", final_url="https://x.test/",
+                           status_code=200, load_ms=300, html=page)
+    check(audit.score == sum(f.weight for f in audit.findings),
+          "an audit's score is the sum of what it found")
+
+
 def harvest_regression_checks() -> None:
     """A thinner harvest must not replace a thicker one."""
     from loom.services.site_harvest import Harvest, MenuItem, _images, is_regression
@@ -514,6 +539,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    text_and_score_checks()
     harvest_regression_checks()
     geography_checks()
     menu_doc_checks()

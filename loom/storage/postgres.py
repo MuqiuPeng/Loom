@@ -1054,6 +1054,13 @@ class PostgresDataStorage(DataStorage):
                     for name, v in (r.demo_variants or {}).items()
                 ],
                 "demo_built_at": r.demo_built_at.isoformat() if r.demo_built_at else None,
+                # Kept in step with the single-row projection deliberately: the
+                # two disagreeing is how a lead fetched by id looked untouched
+                # while the same lead in a list looked finished.
+                "drafted_at": r.drafted_at.isoformat() if r.drafted_at else None,
+                "followed_up_at": (
+                    r.followed_up_at.isoformat() if r.followed_up_at else None
+                ),
                 "draft_subject": r.draft_subject,
                 "draft_body": r.draft_body,
                 "contacted_at": r.contacted_at.isoformat() if r.contacted_at else None,
@@ -1176,6 +1183,16 @@ class PostgresDataStorage(DataStorage):
                 f"scout_leads has no writable field(s) {', '.join(unknown)} — "
                 "add them to _LEAD_WRITABLE if a pipeline stage should own them"
             )
+        # score is the audit's own total, kept in a column so the list can
+        # sort on it. Two homes for one fact drift: writing a fresh audit
+        # without its score left a lead showing "score 1" above findings
+        # weighing three, three and one. Derived here so no caller can write
+        # one without the other, and only when the audit carries a total.
+        if "audit" in data and "score" not in data:
+            total = (data.get("audit") or {}).get("score")
+            if isinstance(total, int):
+                data = {**data, "score": total}
+
         for key in self._LEAD_WRITABLE:
             if key in data:
                 setattr(row, key, data[key])

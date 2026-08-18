@@ -251,7 +251,16 @@ class Candidate(BaseModel):
 
 
 def _text(html: str) -> str:
-    return _TAG_RE.sub(" ", html)
+    """Tags out, entities decoded, whitespace collapsed.
+
+    Decoding is not cosmetic here. The <title> of a Shopify page routinely
+    contains &ndash; and &amp;, and this feeds site_title, which the panel
+    shows and which the email templates fall back to when Google has no name
+    for the business. A shop addressed as "Dulwich Hill &ndash; Cafe Calibre"
+    in the first line of a cold email is a worse mistake than any of the
+    layout problems the email is written to point out.
+    """
+    return _WHITESPACE_RE.sub(" ", unescape(_TAG_RE.sub(" ", html))).strip()
 
 
 def visible_text(html: str) -> str:

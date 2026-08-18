@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import DesignPlan from "@/components/scout/DesignPlan";
 import HarvestPanel from "@/components/scout/HarvestPanel";
 import { api } from "@/lib/api";
@@ -18,6 +20,63 @@ export const STATUSES: { value: LeadStatus; label: string; tone: string }[] = [
   { value: "won", label: "Won", tone: "bg-green-50 text-green-700" },
   { value: "dead", label: "Dead", tone: "bg-gray-100 text-gray-400" },
 ];
+
+/** "3h ago" — coarse on purpose; the question is staleness, not the clock. */
+function ago(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!Number.isFinite(seconds) || seconds < 0) return "";
+  for (const [limit, size, unit] of [
+    [90, 1, "s"],
+    [5400, 60, "m"],
+    [172800, 3600, "h"],
+  ] as const) {
+    if (seconds < limit) return `${Math.round(seconds / size)}${unit} ago`;
+  }
+  return `${Math.round(seconds / 86400)}d ago`;
+}
+
+/** A panel section.
+ *
+ * Two weights, because the panel holds two kinds of thing and used to give
+ * them the same one: everything sat under identical grey capitals, so nine
+ * sections read as nine equals and the eye had nowhere to land.
+ *
+ * `stage` is work — material harvested, designs built, an email drafted. It
+ * gets a rule across the panel and a heading dark enough to scan for, plus
+ * the time it ran, which the panel held and never showed. `quiet` is
+ * reference you read once.
+ */
+function Section({
+  title,
+  meta,
+  tone = "quiet",
+  children,
+}: {
+  title: string;
+  meta?: string;
+  tone?: "stage" | "quiet";
+  children: React.ReactNode;
+}) {
+  const stage = tone === "stage";
+  return (
+    <section className={stage ? "pt-5 border-t border-gray-200" : ""}>
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <h3
+          className={
+            stage
+              ? "text-[13px] font-semibold text-gray-900"
+              : "text-xs font-semibold text-gray-400 uppercase tracking-wider"
+          }
+        >
+          {title}
+        </h3>
+        {meta && <span className="text-[11px] text-gray-400 shrink-0">{meta}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function Step({
   label,
@@ -75,31 +134,39 @@ export default function LeadDetail({
   onNotes: (lead: ScoutLead, notes: string) => void;
   onRefresh: () => void;
 }) {
+  // The findings list is the longest thing on the panel and the least often
+  // re-read; left open it pushed the pipeline — the reason anyone opens a
+  // lead — below the fold. Two are enough to recognise the lead by.
+  const [allFindings, setAllFindings] = useState(false);
+  const findings = lead.audit?.findings ?? [];
+  const shown = allFindings ? findings : findings.slice(0, 2);
+
   return (
     <div className="h-full flex flex-col">
-      <header className="px-6 py-4 border-b border-gray-200 flex items-start justify-between gap-4 shrink-0">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-gray-900 truncate">
-            {lead.google_name || lead.site_title || lead.place_id}
-          </h2>
-          {lead.google_address && (
-            <p className="text-xs text-gray-500 mt-0.5 truncate">
-              {lead.google_address}
-            </p>
-          )}
+      <header className="px-6 py-4 border-b border-gray-200 shrink-0">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 truncate">
+              {lead.google_name || lead.site_title || lead.place_id}
+            </h2>
+            {lead.google_address && (
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                {lead.google_address}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 text-xl leading-none shrink-0"
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 text-xl leading-none shrink-0"
-          aria-label="Close"
-        >
-          ×
-        </button>
-      </header>
 
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-        {/* Outreach status */}
-        <div className="flex flex-wrap gap-1">
+        {/* Status belongs to identity, not to the scroll: which pile a lead is
+            in should not move when the body below it grows. */}
+        <div className="flex flex-wrap gap-1 mt-3">
           {STATUSES.map((s) => (
             <button
               key={s.value}
@@ -112,148 +179,141 @@ export default function LeadDetail({
             </button>
           ))}
         </div>
+      </header>
 
-        {/* What's wrong with their current site — the pitch */}
-        {lead.audit && lead.audit.findings.length > 0 && (
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Findings · score {lead.score}
-            </h3>
-            <ul className="space-y-1">
-              {lead.audit.findings.map((f) => (
-                <li key={f.code} className="text-sm">
-                  <span className="text-amber-500">•</span>{" "}
-                  <span className="text-gray-800 font-medium">{f.label}</span>
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Why this lead is worth anything: what is wrong, and how to reach
+            them. Read once, so it stays quiet and short. */}
+        {findings.length > 0 && (
+          <Section title="Findings" meta={`score ${lead.score}`}>
+            <ul className="space-y-1.5">
+              {shown.map((f) => (
+                <li key={f.code} className="text-sm leading-snug">
+                  <span className="text-gray-900 font-medium">{f.label}</span>
                   {f.detail && (
-                    <span className="text-gray-500"> — {f.detail}</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      {f.detail}
+                    </span>
                   )}
                 </li>
               ))}
             </ul>
-          </section>
+            {findings.length > 2 && (
+              <button
+                onClick={() => setAllFindings((v) => !v)}
+                className="mt-1.5 text-xs text-indigo-600 hover:underline"
+              >
+                {allFindings
+                  ? "Show fewer"
+                  : `${findings.length - 2} more`}
+              </button>
+            )}
+          </Section>
         )}
 
-        {/* Contact */}
-        <section className="text-sm space-y-1">
-          {lead.site_url && (
-            <a
-              href={lead.site_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="block text-indigo-600 hover:underline truncate"
-            >
-              {lead.site_title || lead.site_url}
-            </a>
-          )}
-          {lead.emails.length > 0 && (
-            <p className="text-gray-700 break-all">{lead.emails.join(", ")}</p>
-          )}
-          {lead.google_phone && <p className="text-gray-700">{lead.google_phone}</p>}
-        </section>
+        <Section title="Contact">
+          <dl className="text-sm space-y-1">
+            {lead.site_url && (
+              <div className="flex gap-2">
+                <dt className="text-gray-400 w-12 shrink-0">Site</dt>
+                <dd className="min-w-0">
+                  <a
+                    href={lead.site_url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="text-indigo-600 hover:underline block truncate"
+                  >
+                    {lead.site_title || lead.site_url}
+                  </a>
+                </dd>
+              </div>
+            )}
+            {lead.emails.length > 0 && (
+              <div className="flex gap-2">
+                <dt className="text-gray-400 w-12 shrink-0">Email</dt>
+                <dd className="text-gray-700 break-all">{lead.emails.join(", ")}</dd>
+              </div>
+            )}
+            {lead.google_phone && (
+              <div className="flex gap-2">
+                <dt className="text-gray-400 w-12 shrink-0">Phone</dt>
+                <dd className="text-gray-700">{lead.google_phone}</dd>
+              </div>
+            )}
+            {!lead.site_url && lead.emails.length === 0 && !lead.google_phone && (
+              <p className="text-sm text-gray-400">
+                No website, address or number found — check their socials by hand.
+              </p>
+            )}
+          </dl>
+        </Section>
 
-        {/* Pipeline */}
         {/* Commercial work, and only freelance leads get it. The API answers
             409 for a job lead; not rendering the buttons means you never have
             to find that out by clicking. */}
         {lead.kind === "freelance" && (
-        <section>
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            Pipeline
-          </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <Step
-              label="Harvest"
-              done={!!lead.harvested_at}
-              busy={busy === "harvest"}
-              onClick={() => onAct(lead, "harvest")}
-            />
-            <span className="text-gray-300">→</span>
-            <Step
-              label={lead.demo_plan ? "Re-analyse" : "Analyse"}
-              done={!!lead.planned_at}
-              disabled={!lead.harvested_at}
-              busy={busy === "plan"}
-              onClick={() => onAct(lead, "plan")}
-            />
-            <span className="text-gray-300">→</span>
-            <Step
-              label="Draft email"
-              done={!!lead.draft_body}
-              disabled={!lead.demo_built_at}
-              busy={busy === "draft"}
-              onClick={() => onAct(lead, "draft")}
-            />
-            {lead.demo_built_at && (
-              <a
-                href={`/api/scout/leads/${lead.id}/demo`}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-xs text-indigo-600 hover:underline ml-1"
-              >
-                preview ↗
-              </a>
-            )}
-          </div>
-
-          {/* Sharing is a decision, not a by-product of building. */}
-          {lead.demo_built_at && (
-            <div className="mt-3 p-2.5 rounded-md border border-gray-200 bg-gray-50">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={lead.demo_public}
-                  onChange={(e) => onShare(lead, e.target.checked)}
-                  className="accent-indigo-600"
-                />
-                <span className="text-sm text-gray-700">
-                  Anyone with the link can open this
-                </span>
-              </label>
-              {lead.demo_public && lead.demo_slug ? (
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="text-xs text-gray-600 bg-white border border-gray-200 rounded px-2 py-1 truncate flex-1">
-                    {shareUrl(lead.demo_slug)}
-                  </code>
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(shareUrl(lead.demo_slug!))
-                    }
-                    className="text-xs text-indigo-600 hover:underline shrink-0"
-                  >
-                    copy
-                  </button>
-                </div>
-              ) : (
-                <p className="mt-1 text-xs text-gray-400">
-                  Off — the link 404s for everyone, including you when logged out.
-                </p>
+          <Section title="Pipeline" tone="stage">
+            <div className="flex flex-wrap items-center gap-2">
+              <Step
+                label="Harvest"
+                done={!!lead.harvested_at}
+                busy={busy === "harvest"}
+                onClick={() => onAct(lead, "harvest")}
+              />
+              <span className="text-gray-300">→</span>
+              <Step
+                label={lead.demo_plan ? "Re-analyse" : "Analyse"}
+                done={!!lead.planned_at}
+                disabled={!lead.harvested_at}
+                busy={busy === "plan"}
+                onClick={() => onAct(lead, "plan")}
+              />
+              <span className="text-gray-300">→</span>
+              <Step
+                label="Draft email"
+                done={!!lead.draft_body}
+                disabled={!lead.demo_built_at}
+                busy={busy === "draft"}
+                onClick={() => onAct(lead, "draft")}
+              />
+              {lead.demo_built_at && (
+                <a
+                  href={`/api/scout/leads/${lead.id}/demo`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-xs text-indigo-600 hover:underline ml-1"
+                >
+                  preview ↗
+                </a>
               )}
             </div>
-          )}
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        </section>
+            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          </Section>
         )}
 
-        {/* The proposal — reviewed before anything expensive runs */}
+        {/* Stage output, in the order the stages run. The harvest used to sit
+            below the designs it was the material for. */}
+        {lead.harvest && (
+          <Section title="Harvested" meta={ago(lead.harvested_at)} tone="stage">
+            <HarvestPanel lead={lead} onSaved={onRefresh} />
+          </Section>
+        )}
+
         {lead.demo_plan && (
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Design plan
-            </h3>
+          <Section title="Design plan" meta={ago(lead.planned_at)} tone="stage">
             <DesignPlan
               plan={lead.demo_plan}
               building={busy === "demo"}
               onBuild={(directions) => onBuild(lead, directions)}
             />
-          </section>
+          </Section>
         )}
 
-        {/* Designs */}
         {lead.demo_options.length > 0 && (
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Designs — the selected one is what preview shows
-            </h3>
+          <Section title="Designs" meta={ago(lead.demo_built_at)} tone="stage">
+            <p className="text-xs text-gray-500 mb-2">
+              The selected one is what preview and the link show.
+            </p>
             <div className="flex gap-3 overflow-x-auto pb-1">
               {lead.demo_options.map((option) => {
                 const active = option.direction === lead.demo_active;
@@ -308,49 +368,73 @@ export default function LeadDetail({
                 );
               })}
             </div>
-          </section>
+
+            {/* Sharing is a decision about a built design, so it lives with
+                them rather than under the pipeline buttons. */}
+            {lead.demo_built_at && (
+              <div className="mt-3 p-2.5 rounded-md border border-gray-200 bg-gray-50">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={lead.demo_public}
+                    onChange={(e) => onShare(lead, e.target.checked)}
+                    className="accent-indigo-600"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Anyone with the link can open this
+                  </span>
+                </label>
+                {lead.demo_public && lead.demo_slug ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="text-xs text-gray-600 bg-white border border-gray-200 rounded px-2 py-1 truncate flex-1">
+                      {shareUrl(lead.demo_slug)}
+                    </code>
+                    <button
+                      onClick={() =>
+                        navigator.clipboard.writeText(shareUrl(lead.demo_slug!))
+                      }
+                      className="text-xs text-indigo-600 hover:underline shrink-0"
+                    >
+                      copy
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-400">
+                    Off — the link 404s for everyone, including you when logged out.
+                  </p>
+                )}
+              </div>
+            )}
+          </Section>
         )}
 
-        {/* Harvested material, with the pick-what-to-use controls */}
-        {lead.harvest && (
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Harvested
-            </h3>
-            <HarvestPanel lead={lead} onSaved={onRefresh} />
-          </section>
-        )}
-
-        {/* Draft */}
         {lead.draft_body && (
-          <section>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Draft — {lead.draft_subject}
-            </h3>
+          <Section title="Draft email" meta={ago(lead.drafted_at)} tone="stage">
+            <p className="text-sm text-gray-900 font-medium mb-1.5">
+              {lead.draft_subject}
+            </p>
             <pre className="bg-gray-50 border border-gray-100 rounded p-3 text-xs text-gray-700 whitespace-pre-wrap">
               {lead.draft_body}
             </pre>
-            <button
-              onClick={() =>
-                navigator.clipboard.writeText(
-                  `Subject: ${lead.draft_subject}\n\n${lead.draft_body}`
-                )
-              }
-              className="mt-1 text-xs text-indigo-600 hover:underline"
-            >
-              copy
-            </button>
-            <span className="ml-2 text-xs text-gray-400">
-              Nothing is sent for you — send it from your own mail client.
-            </span>
-          </section>
+            <div className="mt-1.5 flex items-center gap-2">
+              <button
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `Subject: ${lead.draft_subject}\n\n${lead.draft_body}`
+                  )
+                }
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                copy
+              </button>
+              <span className="text-xs text-gray-400">
+                Nothing is sent for you — send it from your own mail client.
+              </span>
+            </div>
+          </Section>
         )}
 
-        {/* Notes */}
-        <section>
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            Notes
-          </h3>
+        <Section title="Notes" tone="stage">
           <textarea
             defaultValue={lead.notes || ""}
             onBlur={(e) => onNotes(lead, e.target.value)}
@@ -358,7 +442,7 @@ export default function LeadDetail({
             rows={3}
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-100"
           />
-        </section>
+        </Section>
       </div>
     </div>
   );
