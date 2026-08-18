@@ -63,10 +63,17 @@ def _credentials() -> tuple[str, str]:
         or os.environ.get("GMAIL_APP_PASSWORD", ""),
     )
 
-# Well under Gmail's documented 500/day, because the ceiling was never the
-# constraint — complaints are. A run that sends twenty and stops is also a run
+# Well under any provider's documented daily ceiling, because the ceiling was
+# never the constraint — complaints are. A run that stops early is also a run
 # whose damage is bounded when something is wrong with the drafts.
-MAX_PER_RUN = 20
+#
+# Five while the first real sends happen. Nothing in this pipeline has ever
+# reached a stranger: the redirect caught every message until now, so the
+# reply rate, the inbox placement and what a reply even looks like are all
+# guesses. Five is enough to replace those guesses and few enough that a
+# mistake in the wording reaches five people rather than twenty. Raise it once
+# a batch has come back.
+MAX_PER_RUN = 5
 # Jitter, not a fixed gap: fifty identical intervals is itself a pattern, and
 # each send currently opens a fresh TLS+AUTH cycle.
 SEND_GAP_SECONDS = (30, 90)
