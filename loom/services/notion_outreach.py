@@ -405,6 +405,35 @@ async def record_message_id(page_id: str, message_id: str) -> None:
             pass
 
 
+def _now_iso() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat()
+
+
+async def mark_sent_for_lead(lead_id: str) -> bool:
+    """Mark this lead's row Sent, if it has one. Returns whether it did.
+
+    The panel can send a draft without the row ever being approved there, so
+    the table would otherwise still show Draft for a message that has gone.
+    Two records disagreeing about whether a stranger has been written to is
+    the disagreement that matters most: the table is what someone reads before
+    deciding to write again.
+    """
+    if not enabled():
+        return False
+    database_id = os.environ.get("NOTION_OUTREACH_DB_ID", "").strip()
+    if not database_id:
+        return False
+    async with session() as client:
+        row = await _find_by_lead(client, database_id, lead_id)
+    if not row:
+        return False
+    await mark(row["page_id"], STATUS_SENT,
+               sent_at=_now_iso())
+    return True
+
+
 async def mark(page_id: str, status: str, *, error: str = "", sent_at: str = "") -> None:
     """Write the outcome back so the table is the record of what happened."""
     if not enabled():

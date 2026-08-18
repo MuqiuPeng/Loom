@@ -310,6 +310,16 @@ export const api = {
         `/scout/leads/${id}/draft`,
         { method: "POST" }
       ),
+
+    /** Send this lead's drafted email. The panel confirms the recipient first;
+     *  the API re-argues consent and refuses a lead already contacted. */
+    send: (id: string) =>
+      request<{
+        sent: boolean;
+        to: string;
+        subject?: string;
+        redirected_to?: string;
+      }>(`/scout/leads/${id}/send`, { method: "POST" }),
   },
 
   logs: {

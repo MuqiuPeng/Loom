@@ -2193,6 +2193,107 @@ async def draft_scout_outreach(
     return draft
 
 
+@app.post("/api/scout/leads/{lead_id}/send")
+async def send_scout_draft(lead_id: str, owner: str = OwnerOnly) -> dict:
+    """Send this lead's drafted email, now, to the address it is addressed to.
+
+    A second way to send, and worth being honest about what that costs. The
+    Notion table exists so approval happens away from the machine that wrote
+    the draft, and this route skips that table. What it does not skip is the
+    approving: the panel shows the recipient and the subject and asks again
+    before calling this, so a person still reads who it is going to and says
+    yes. What moves is where they say it, not whether.
+
+    Everything else is the same path the approved queue takes, and
+    deliberately so:
+
+      * the draft is re-rendered rather than sent from storage, so consent is
+        argued against the lead as it is now — a page that has since added a
+        refusal, or an address that has gone, changes the answer after a draft
+        was written
+      * the never-send denylist and the domain check run as they do there
+      * contacted_at is written, which is what stops a second send and what
+        makes the follow-up scheduler eligible three business days later
+
+    Refuses a lead already contacted. Duplicates are the failure this whole
+    module is arranged against, and "the button was clicked twice" is the
+    likeliest way to produce one.
+    """
+    import os
+
+    from loom.services.dns_check import deliverable
+    from loom.services.email_templates import (
+        MissingSlotsError,
+        NoConsentBasisError,
+        OptedOutError,
+        ProblemTooWeakError,
+        render,
+        suggest_template,
+    )
+    from loom.services.mailer import configured, redirect_to, send, sendable
+
+    storage, lead = await _require_lead(lead_id, owner, kind="freelance")
+
+    if lead.get("contacted_at"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"already contacted on {str(lead['contacted_at'])[:16]}",
+        )
+    if not lead.get("draft_body"):
+        raise HTTPException(status_code=409, detail="draft the email first")
+    if not configured():
+        raise HTTPException(status_code=503, detail="no mailbox is configured")
+
+    try:
+        draft = render(
+            suggest_template(lead),
+            lead,
+            public_base=os.environ.get("LOOM_PUBLIC_URL", ""),
+        )
+    except (OptedOutError, NoConsentBasisError, ProblemTooWeakError) as e:
+        # Each of these is a rule, not a fault: it opted out, nothing argues
+        # for the address, nothing is wrong with the site worth writing about.
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except MissingSlotsError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    refusal = sendable(draft["to"])
+    if not refusal and await deliverable(draft["to"]) is False:
+        refusal = f"{draft['to']} — the domain can't receive mail"
+    if refusal:
+        raise HTTPException(status_code=409, detail=refusal)
+
+    try:
+        message_id = await send(draft["to"], draft["subject"], draft["body"])
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)[:300]) from e
+
+    diverting = redirect_to()
+    if diverting:
+        # Not recorded as contacted, for the reason the queue keeps
+        # contacted_at null when diverting: the business was not written to,
+        # and recording it would make the follow-up chase a first contact
+        # nobody received.
+        return {"sent": False, "redirected_to": diverting, "to": draft["to"]}
+
+    await storage.update_scout_lead(
+        lead_id,
+        {"contacted_at": datetime.utcnow(), "status": "contacted"},
+        user_id=owner,
+    )
+    # Keep the table honest about what has gone out, but never fail the send
+    # over it — the message has already left.
+    try:
+        from loom.services.notion_outreach import mark_sent_for_lead
+
+        await mark_sent_for_lead(lead_id)
+    except Exception:
+        pass
+
+    return {"sent": True, "to": draft["to"], "subject": draft["subject"],
+            "message_id": message_id}
+
+
 @app.post("/api/scout/outreach/send-approved")
 async def send_approved_outreach(
     dry_run: bool | None = None, owner: str = OwnerOnly

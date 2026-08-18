@@ -138,6 +138,33 @@ export default function LeadDetail({
   // re-read; left open it pushed the pipeline — the reason anyone opens a
   // lead — below the fold. Two are enough to recognise the lead by.
   const [allFindings, setAllFindings] = useState(false);
+
+  // Sending is the one action here that cannot be undone, so it is the one
+  // with its own confirmation and its own error line rather than sharing the
+  // pipeline's.
+  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+
+  async function onSend() {
+    setSending(true);
+    setSendError("");
+    try {
+      const result = await api.scout.send(lead.id);
+      if (!result.sent && result.redirected_to) {
+        setSendError(
+          `Diverted to ${result.redirected_to} — OUTREACH_REDIRECT_TO is still set, so the business was not written to.`
+        );
+      } else {
+        setConfirming(false);
+      }
+      onRefresh();
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
+  }
   const findings = lead.audit?.findings ?? [];
   const shown = allFindings ? findings : findings.slice(0, 2);
 
@@ -427,9 +454,62 @@ export default function LeadDetail({
               >
                 copy
               </button>
-              <span className="text-xs text-gray-400">
-                Nothing is sent for you — send it from your own mail client.
-              </span>
+            </div>
+
+            {/* Sending, in two clicks rather than one.
+                The first opens the confirmation; the second sends. What sits
+                between them is the recipient's address, because that is the
+                thing worth reading twice — the draft above is already visible,
+                and who it is addressed to is not. */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              {lead.contacted_at ? (
+                <p className="text-xs text-gray-500">
+                  Sent {new Date(lead.contacted_at).toLocaleDateString()}. A lead
+                  is only written to once from here.
+                </p>
+              ) : confirming ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-gray-800">
+                    Send to{" "}
+                    <span className="font-medium">{lead.emails[0]}</span>?
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    It goes now, from your own address. Nothing recalls it.
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={onSend}
+                      disabled={sending}
+                      className="px-3 py-1.5 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-black disabled:opacity-40"
+                    >
+                      {sending ? "Sending…" : "Send it"}
+                    </button>
+                    <button
+                      onClick={() => setConfirming(false)}
+                      disabled={sending}
+                      className="text-xs text-gray-500 hover:underline"
+                    >
+                      cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirming(true)}
+                  disabled={lead.emails.length === 0}
+                  title={
+                    lead.emails.length === 0
+                      ? "No address that may be written to"
+                      : undefined
+                  }
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Send this email
+                </button>
+              )}
+              {sendError && (
+                <p className="mt-2 text-xs text-red-600">{sendError}</p>
+              )}
             </div>
           </Section>
         )}

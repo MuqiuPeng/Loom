@@ -360,6 +360,34 @@ async def image_pick_checks() -> None:
     )
 
 
+def send_endpoint_checks() -> None:
+    """The refusals guarding the panel's send button."""
+    import inspect
+
+    from loom import api
+
+    print("\n-- send from the panel --")
+
+    source = inspect.getsource(api.send_scout_draft)
+
+    # Duplicates are what this whole path is arranged against, and a button
+    # clicked twice is the likeliest way to make one.
+    check("contacted_at" in source and "already contacted" in source,
+          "a lead already contacted is refused")
+    # The draft may be days old; the site or the address may have changed.
+    check("render(" in source and "suggest_template" in source,
+          "the email is re-rendered rather than sent from storage")
+    check("NoConsentBasisError" in source and "OptedOutError" in source,
+          "consent is argued again at send time")
+    check("sendable(" in source, "the never-send denylist still applies")
+    check("deliverable(" in source, "so does the domain check")
+    check("redirect_to()" in source and "contacted_at" in source,
+          "a diverted message is not recorded as contact")
+    check("OwnerOnly" in inspect.signature(api.send_scout_draft).__str__()
+          or "owner" in inspect.signature(api.send_scout_draft).parameters,
+          "the endpoint is owner-only")
+
+
 def cli_checks() -> None:
     """The CLI's shape, and the one command it must not have."""
     from click.testing import CliRunner
@@ -564,6 +592,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    send_endpoint_checks()
     cli_checks()
     text_and_score_checks()
     harvest_regression_checks()
