@@ -360,6 +360,31 @@ async def image_pick_checks() -> None:
     )
 
 
+def cli_checks() -> None:
+    """The CLI's shape, and the one command it must not have."""
+    from click.testing import CliRunner
+
+    from loom.cli_scout import scout
+
+    print("\n-- scout cli --")
+
+    names = set(scout.commands)
+    for wanted in ("leads", "show", "harvest", "audit", "draft", "queue", "doctor"):
+        check(wanted in names, f"`scout {wanted}` exists")
+
+    # The whole point of the module docstring. Sending goes through a person
+    # marking a row Approved and then an endpoint; a second path is the route
+    # around that mailer already warns about.
+    for forbidden in ("send", "send-approved", "mail", "contact"):
+        check(forbidden not in names, f"`scout {forbidden}` does not exist, and should not")
+
+    # Every command has to survive --help without importing a database.
+    runner = CliRunner()
+    for name in sorted(names):
+        result = runner.invoke(scout, [name, "--help"])
+        check(result.exit_code == 0, f"`scout {name} --help` works")
+
+
 def text_and_score_checks() -> None:
     """Two facts that reach a shop owner, and used to reach them mangled."""
     from loom.services.company_scout import _text
@@ -539,6 +564,7 @@ async def main() -> int:
     email_checks()
     await enrichment_checks()
     await image_pick_checks()
+    cli_checks()
     text_and_score_checks()
     harvest_regression_checks()
     geography_checks()

@@ -115,7 +115,16 @@ cd dashboard && npx tsc --noEmit && npm test    # 13 vitest cases
 
 ```bash
 python -m loom.scripts.check_deployed   # what is committed but not yet running
+
+python -m loom.cli scout doctor         # could outreach run, and what would happen
+python -m loom.cli scout leads          # every lead and what has been done to it
+python -m loom.cli scout show <name>    # findings, harvest, who may be written to
+python -m loom.cli scout draft <name>   # the email that would go — renders only
 ```
+
+There is deliberately no `scout send`. A message reaching a stranger goes
+through a person marking a row Approved in Notion and then the endpoint; a
+second path is the route around that the redirect's own note warns about.
 
 CI runs the checks on every push and deploys nothing, so the repository and the
 running system drift apart quietly — `check_deployed` is what says by how much.

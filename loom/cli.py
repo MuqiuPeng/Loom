@@ -9,6 +9,8 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
+from loom.cli_scout import scout
+
 # Load environment variables
 load_dotenv()
 
@@ -18,6 +20,9 @@ load_dotenv()
 def main():
     """Loom - AI-native automation workflow engine."""
     pass
+
+
+main.add_command(scout)
 
 
 @main.command("run-resume")
