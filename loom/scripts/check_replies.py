@@ -136,6 +136,15 @@ def matching_checks() -> None:
     )
 
 
+# Where an address was seen, as the scout records it at first sighting. The
+# whole cl 4(2) argument rests on this being real, so the checks below supply
+# it rather than leaving it out and getting a pass by default.
+PUBLISHED = {
+    "url": "https://x.example/contact",
+    "how": "mailto link",
+    "refuses_unsolicited": False,
+}
+
 LEAD = {
     "id": "t",
     "google_name": "Ferro Plumbing",
@@ -145,6 +154,11 @@ LEAD = {
     # A role address the exception can be argued for; "a@b.com" is a named
     # individual with no stated role and is now correctly refused.
     "emails": ["owner@cafe.com.au"],
+    # Every lead here carries provenance now, because a lead without it is no
+    # longer a lead anything may be drafted from. The fixtures had none — the
+    # same state every real lead in the table was in, and for the same reason:
+    # nothing was asking.
+    "email_sources": {"owner@cafe.com.au": PUBLISHED},
     "audit": {
         "findings": [
             {"code": "phone_not_tappable", "weight": 3, "label": "x", "detail": "y"}
@@ -292,27 +306,44 @@ def consent_checks() -> None:
     ):
         check(classify(address)["tier"] == tier, f"{address} -> {tier}")
 
-    check(not may_write_to("careers@x.com")[0], "a careers mailbox is refused")
-    check(not may_write_to("jo@x.com")[0],
+    check(not may_write_to("careers@x.com", PUBLISHED)[0],
+          "a careers mailbox is refused")
+    check(not may_write_to("jo@x.com", PUBLISHED)[0],
           "an unexplained personal address is held, not sent")
-    check(may_write_to("owner@x.com")[0], "an owner address may be written to")
+    check(may_write_to("owner@x.com", PUBLISHED)[0],
+          "a published owner address may be written to")
+
+    # The burden in s16(5) runs the other way from how this read for months:
+    # an address with no record of where it was found was the one input that
+    # passed, while a record with a gap in it was refused two lines down.
+    check(not may_write_to("owner@x.com")[0],
+          "an address nobody recorded finding cannot be argued for")
 
     # cl 4(2)(d): a refusal on the page removes the exception whatever the role.
     check(not may_write_to("owner@x.com",
                            {"url": "https://x", "refuses_unsolicited": True})[0],
           "a refusal on the page beats even the strongest role")
     check(not may_write_to("owner@x.com", {"url": ""})[0],
-          "no provenance means no argument")
+          "a record with no page in it means no argument")
 
-    check(best(["careers@x.com", "info@x.com", "owner@x.com"]) == "owner@x.com",
+    seen = {a: PUBLISHED for a in
+            ("careers@x.com", "accounts@x.com", "info@x.com", "owner@x.com")}
+    check(best(["careers@x.com", "info@x.com", "owner@x.com"], seen) == "owner@x.com",
           "the strongest argument is chosen, not the first harvested")
-    check(best(["careers@x.com", "accounts@x.com"]) == "",
+    check(best(["careers@x.com", "accounts@x.com"], seen) == "",
           "a lead with only refused addresses yields nothing")
+    check(best(["owner@x.com", "info@x.com"], {"info@x.com": PUBLISHED})
+          == "info@x.com",
+          "one documented address beats two, one of which nobody can vouch for")
 
     print("\ndrafting refuses what cannot be argued:")
 
     def drafts(emails: list[str], sources: dict | None = None) -> bool:
-        lead = {**LEAD, "emails": emails, "email_sources": sources or {}}
+        # Provenance by default, so these keep testing the role logic rather
+        # than all failing alike on a missing record.
+        if sources is None:
+            sources = {a: PUBLISHED for a in emails}
+        lead = {**LEAD, "emails": emails, "email_sources": sources}
         try:
             render("first_contact", lead, public_base="https://p")
         except NoConsentBasisError:
@@ -327,7 +358,11 @@ def consent_checks() -> None:
                    {"owner@x.com": {"url": "https://x", "refuses_unsolicited": True}}),
         "a page refusal blocks drafting outright",
     )
-    lead = {**LEAD, "emails": ["careers@x.com", "owner@x.com"]}
+    check(not drafts(["owner@x.com"], {}),
+          "an address with no recorded sighting never drafts")
+
+    lead = {**LEAD, "emails": ["careers@x.com", "owner@x.com"],
+            "email_sources": {"careers@x.com": PUBLISHED, "owner@x.com": PUBLISHED}}
     check(render("first_contact", lead, public_base="https://p")["to"] == "owner@x.com",
           "the recipient is the best-argued address, not emails[0]")
 
