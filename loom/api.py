@@ -1920,6 +1920,21 @@ async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
     except Exception as e:  # noqa: BLE001 - best effort alongside the harvest
         logger.warning("contact refresh failed for %s: %s", lead_id, e)
 
+    # Contacts are written before the harvest is judged, and on both paths.
+    # They are read with httpx and a regex — no model, no extraction step — so
+    # they succeed on runs where the harvest fails outright, and the first
+    # attempt at this discarded them on exactly that run: the site was read,
+    # the addresses and their provenance were captured, the extraction step
+    # 400'd, and the early return threw the evidence away.
+    contacts_written = False
+    if contacts.get("emails"):
+        await storage.update_scout_lead(
+            lead_id,
+            {"emails": contacts["emails"], "email_sources": contacts["email_sources"]},
+            user_id=user_id,
+        )
+        contacts_written = True
+
     # A re-harvest that comes back with less than the stored one is far more
     # likely a slow render than a business that deleted its menu, so the
     # previous harvest is kept and the caller is told why rather than being
@@ -1930,24 +1945,23 @@ async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
             "harvest": lead.get("harvest"),
             "usable": True,
             "kept_previous": regression,
+            "emails": contacts.get("emails") or lead.get("emails") or [],
         }
 
-    update: dict = {
-        "harvest": harvest.model_dump(mode="json"),
-        "harvested_at": datetime.utcnow(),
-    }
-    # An empty result means the site could not be read, not that the addresses
-    # are gone. Writing it back would delete the provenance this exists to
-    # capture, on the one run that failed to capture it.
-    if contacts.get("emails"):
-        update["emails"] = contacts["emails"]
-        update["email_sources"] = contacts["email_sources"]
-
-    await storage.update_scout_lead(lead_id, update, user_id=user_id)
+    await storage.update_scout_lead(
+        lead_id,
+        {
+            "harvest": harvest.model_dump(mode="json"),
+            "harvested_at": datetime.utcnow(),
+        },
+        user_id=user_id,
+    )
     return {
         "harvest": harvest.model_dump(mode="json"),
         "usable": harvest.is_usable,
-        "emails": update.get("emails", lead.get("emails") or []),
+        "emails": (
+            contacts["emails"] if contacts_written else (lead.get("emails") or [])
+        ),
     }
 
 
