@@ -1902,10 +1902,23 @@ async def _require_lead(
 @app.post("/api/scout/leads/{lead_id}/harvest")
 async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
     """Read the business's own pages for menu, hours, images and socials."""
+    from loom.services.company_scout import refresh_contacts
     from loom.services.site_harvest import harvest_lead, is_regression
 
     storage, lead = await _require_lead(lead_id, user_id, kind="freelance")
     harvest = await harvest_lead(lead)
+
+    # Addresses and their provenance ride along with the harvest because this
+    # is the one stage that already re-reads the site, and because a lead
+    # scouted before provenance existed otherwise has no route to acquiring
+    # any: the draft refuses it, and the only button that could fix it is this
+    # one. Failure here does not fail the harvest — the pages are the point,
+    # and a lead that keeps its old addresses is no worse off than before.
+    contacts: dict = {}
+    try:
+        contacts = await refresh_contacts(lead)
+    except Exception as e:  # noqa: BLE001 - best effort alongside the harvest
+        logger.warning("contact refresh failed for %s: %s", lead_id, e)
 
     # A re-harvest that comes back with less than the stored one is far more
     # likely a slow render than a business that deleted its menu, so the
@@ -1919,12 +1932,23 @@ async def harvest_scout_lead(lead_id: str, user_id: str = CurrentUser) -> dict:
             "kept_previous": regression,
         }
 
-    await storage.update_scout_lead(
-        lead_id,
-        {"harvest": harvest.model_dump(mode="json"), "harvested_at": datetime.utcnow()},
-        user_id=user_id,
-    )
-    return {"harvest": harvest.model_dump(mode="json"), "usable": harvest.is_usable}
+    update: dict = {
+        "harvest": harvest.model_dump(mode="json"),
+        "harvested_at": datetime.utcnow(),
+    }
+    # An empty result means the site could not be read, not that the addresses
+    # are gone. Writing it back would delete the provenance this exists to
+    # capture, on the one run that failed to capture it.
+    if contacts.get("emails"):
+        update["emails"] = contacts["emails"]
+        update["email_sources"] = contacts["email_sources"]
+
+    await storage.update_scout_lead(lead_id, update, user_id=user_id)
+    return {
+        "harvest": harvest.model_dump(mode="json"),
+        "usable": harvest.is_usable,
+        "emails": update.get("emails", lead.get("emails") or []),
+    }
 
 
 @app.post("/api/scout/leads/{lead_id}/plan")

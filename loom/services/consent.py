@@ -167,12 +167,27 @@ def may_write_to(address: str, source: dict | None = None) -> tuple[bool, str]:
     refused unsolicited commercial mail removes the exception outright,
     whatever the role — cl 4(2)(d) is a condition, not a factor to weigh.
     """
-    if source and source.get("refuses_unsolicited"):
+    # No record at all used to be the one input that passed. That is exactly
+    # backwards: a record with a gap in it was refused two lines below, while
+    # an address nobody recorded finding went straight through to the role
+    # check and out the other side as sendable. s16(5) puts the evidential
+    # burden on the sender, and there is no evidence here to carry it — the
+    # address might have come off a conspicuously published contact page or
+    # out of a template nobody ever filled in, and the difference is the whole
+    # argument. Leads scouted before provenance was captured land here; the
+    # answer for them is to read the site again, not to relax this.
+    if not source:
+        return False, (
+            "nothing records where this address was published, so the "
+            "conspicuous publication exception cannot be argued for it — "
+            "harvest the site again to capture it"
+        )
+    if source.get("refuses_unsolicited"):
         return False, (
             "the page publishing this address refused unsolicited commercial "
             "email, which removes the conspicuous publication exception"
         )
-    if source and not source.get("url"):
+    if not source.get("url"):
         return False, (
             "no record of where this address was published, so the exception "
             "cannot be argued for it"

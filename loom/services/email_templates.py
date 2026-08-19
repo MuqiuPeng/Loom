@@ -62,7 +62,9 @@ class NoConsentBasisError(ValueError):
     """
 
     def __init__(self, address: str, why: str) -> None:
-        super().__init__(f"{address}: {why}")
+        # No address means there is nothing to name, and "": reason" reads as
+        # a formatting fault. The reason alone is the whole answer there.
+        super().__init__(f"{address}: {why}" if address else why)
         self.address = address
 
 
@@ -217,11 +219,29 @@ def render(template_key: str, lead: dict, **extra: Any) -> dict[str, str]:
         from loom.services import consent
 
         sources = lead.get("email_sources") or {}
-        chosen = consent.best(lead.get("emails") or [], sources)
+        addresses = lead.get("emails") or []
+        chosen = consent.best(addresses, sources)
         if not chosen:
-            first = (lead.get("emails") or [""])[0]
-            _, why = consent.may_write_to(first, sources.get(first.lower()))
-            raise NoConsentBasisError(first or "(no address)", why)
+            # Two different situations, and they used to produce the same
+            # sentence — "(no address): unknown: not an address", which reads
+            # as a bug report rather than an answer. Nothing was found is a
+            # job to do; something was found but cannot be argued for is a
+            # decision already made, and the reason is the useful part.
+            if not addresses:
+                raise NoConsentBasisError(
+                    "",
+                    "no email address was found on their site — their socials "
+                    "or a phone call are the only way in",
+                )
+            reasons = []
+            for address in addresses:
+                _, why = consent.may_write_to(address, sources.get(address.lower()))
+                reasons.append(f"{address} — {why}")
+            raise NoConsentBasisError(
+                addresses[0],
+                "none of the addresses found can be written to: "
+                + "; ".join(reasons),
+            )
         extra.setdefault("chosen_address", chosen)
 
     values = slots_from_lead(lead, **extra)

@@ -106,8 +106,14 @@ def _classify(exc: Exception) -> str:
 # placeholder domains are the ones template themes ship with — a real run on
 # Marrickville cafes surfaced user@domain.com as a "contact address".
 _EMAIL_NOISE = re.compile(
+    # mystore.com is what Square ships in its own template, and it survived
+    # every filter here: a real domain, a plausible local part, and the role
+    # check reads "hi@" as general enquiries and calls it sendable. It reached
+    # the send path on a live lead. Any store-shaped placeholder belongs with
+    # the yourdomain family, not one domain past it.
     r"@(example|sentry|wixpress|godaddy|schema\.org|domain\.com|yourdomain|"
-    r"yoursite|yourcompany|mydomain|email\.com|sentry\.io)"
+    r"yoursite|yourcompany|mydomain|email\.com|sentry\.io|"
+    r"mystore|mysite|yourstore|yourbusiness|storename)"
     r"|^(you|your|youremail|your-email|user|username|name|email|info)@"
     r"(domain|example|yourdomain|yoursite|company)\."
     r"|\.(png|jpg|jpeg|gif|svg|webp)$",
@@ -668,6 +674,44 @@ async def enrich_candidates(
     if render:
         await _render_audit(candidates)
     return candidates
+
+
+async def refresh_contacts(lead: dict) -> dict:
+    """Read a stored lead's site again for addresses and where they were found.
+
+    Provenance is written once, at first sighting, during the scout — and
+    nothing downstream ever touches `emails` again. So a lead scouted before
+    that code existed has no record and had no way to acquire one, which was
+    survivable only while a missing record counted as no objection. It counts
+    as no evidence now, and this is the way back.
+
+    Only the contact fields come out. `enrich` also produces an audit, and
+    returning it would let a harvest quietly rewrite findings somebody was
+    reading — re-auditing is its own stage, with its own button.
+    """
+    url = (lead.get("site_url") or lead.get("google_website") or "").strip()
+    if not url:
+        return {}
+
+    candidate = Candidate(
+        provider=lead.get("provider") or "google",
+        place_id=lead.get("place_id") or "",
+        google_name=lead.get("google_name") or "",
+        google_website=url,
+        google_phone=lead.get("google_phone"),
+    )
+    async with httpx.AsyncClient(
+        timeout=FETCH_TIMEOUT,
+        follow_redirects=True,
+        headers={"User-Agent": USER_AGENT},
+    ) as client:
+        candidate = await _SiteFetcher(client).enrich(candidate)
+
+    return {
+        "emails": candidate.emails,
+        "email_sources": candidate.email_sources,
+        "no_unsolicited": candidate.no_unsolicited,
+    }
 
 
 async def scout(
