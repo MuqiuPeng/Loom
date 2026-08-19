@@ -81,3 +81,42 @@ def test_draft_accepts_no_body():
     name, model, has_default = _body_params(draft_scout_outreach)[0]
     assert model is DraftRequest
     assert has_default, "the Draft button sends no body"
+
+
+def test_endpoints_handle_every_refusal_render_can_raise():
+    """A caller of render() must answer for all of its refusals.
+
+    render() refuses in four distinct ways, and each is a rule rather than a
+    fault: the lead opted out, no address can be argued for, nothing is wrong
+    with the site worth writing about, a slot had nothing to fill it. Two of
+    those were added with the consent gate; the draft endpoint's except clause
+    was not updated with them, so a lead with no sendable address answered 500
+    for months — a correct refusal arriving as a crash, which reads to the
+    caller as "the server is broken" rather than "there is nobody here you may
+    write to".
+
+    Asserted by reading the source rather than by calling the endpoints,
+    because reaching those branches needs a database and a session, and the
+    thing worth protecting is that the list stays complete as more refusals
+    are added.
+    """
+    import inspect
+
+    from loom.api import draft_scout_outreach, send_scout_draft
+    from loom.services import email_templates
+
+    refusals = {
+        name for name, obj in vars(email_templates).items()
+        if inspect.isclass(obj) and issubclass(obj, Exception)
+        and obj.__module__ == email_templates.__name__
+    }
+    assert refusals, "email_templates should define its refusals as exceptions"
+
+    for endpoint in (draft_scout_outreach, send_scout_draft):
+        source = inspect.getsource(endpoint)
+        missing = sorted(name for name in refusals if name not in source)
+        assert not missing, (
+            f"{endpoint.__name__} calls render() but never names {missing}. "
+            f"An unhandled refusal becomes a 500, and a rule that answers 500 "
+            f"is indistinguishable from a broken server."
+        )

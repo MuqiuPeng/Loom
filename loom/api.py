@@ -2151,6 +2151,8 @@ async def draft_scout_outreach(
     """
     from loom.services.email_templates import (
         MissingSlotsError,
+        NoConsentBasisError,
+        OptedOutError,
         ProblemTooWeakError,
         render,
         suggest_template,
@@ -2168,8 +2170,16 @@ async def draft_scout_outreach(
         )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    except ProblemTooWeakError as e:
-        # Not a failure to fix — a lead not worth writing to.
+    except (ProblemTooWeakError, NoConsentBasisError, OptedOutError) as e:
+        # Not failures to fix — rules. Nothing is wrong with the site worth
+        # writing about; nothing argues for any address they publish; they
+        # asked not to be written to.
+        #
+        # The last two were added with the consent gate and this clause was
+        # not, so for months a lead with no sendable address answered 500 —
+        # a correct refusal arriving as a crash. Which is worse than it
+        # sounds: a 500 reads as "the server is broken, try again", and the
+        # true answer was "there is no one here you may write to".
         raise HTTPException(status_code=409, detail=str(e)) from e
     except MissingSlotsError as e:
         # Naming the gaps is the useful failure: they are what the panel has
