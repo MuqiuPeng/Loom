@@ -1220,7 +1220,11 @@ async def generate_resume_task(request: GenerateResumeRequest, user_id: str = Cu
 
 @app.post("/api/tasks/generate-resume-generic", response_model=TaskResponse)
 async def generate_generic_resume_task(
-    request: GenerateGenericResumeRequest, user_id: str = CurrentUser
+    # Optional: every field has a default, and the dashboard already sends
+    # `data ?? {}` — a `?? {}` in a client is usually a required body that
+    # should not have been.
+    request: GenerateGenericResumeRequest = GenerateGenericResumeRequest(),
+    user_id: str = CurrentUser,
 ) -> TaskResponse:
     """Generate a general-purpose resume without a JD.
 
@@ -2129,7 +2133,16 @@ class DraftRequest(BaseModel):
 
 @app.post("/api/scout/leads/{lead_id}/draft")
 async def draft_scout_outreach(
-    lead_id: str, request: DraftRequest, user_id: str = CurrentUser
+    lead_id: str,
+    # Optional, because every field of it is. Declared without a default it was
+    # a required body, and the panel's Draft button sends none — so the button
+    # answered 422 from the day it was added, and every draft that exists was
+    # made from a script. The other request models with all-defaulted fields
+    # are left required on purpose: an empty POST to /scout/search would run a
+    # billable search with default parameters, which is a worse failure than
+    # a 422.
+    request: DraftRequest = DraftRequest(),
+    user_id: str = CurrentUser,
 ) -> dict:
     """Fill an email format from the lead. Drafting only — nothing is sent.
 

@@ -310,7 +310,11 @@ class RollbackRequest(BaseModel):
 
 @router.post("/session/{session_id}/rollback")
 async def rollback_messages(
-    session_id: str, body: RollbackRequest, user_id: str = CurrentUser
+    session_id: str,
+    # `count` defaults to 2 — the author's answer to "how many when nobody
+    # says", which a required body made impossible to reach.
+    body: RollbackRequest = RollbackRequest(),
+    user_id: str = CurrentUser,
 ) -> dict[str, Any]:
     """Rollback (delete) the last N messages from a session.
 
